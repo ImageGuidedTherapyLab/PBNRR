@@ -1,0 +1,29 @@
+This the the code downloaded from:
+
+http://www.insight-journal.org/browse/publication/876
+
+An ITK Implementation of Physics-based Non-rigid Registration Method
+Liu Y., Kot A., Drakopoulos F., Fedorov A., Enquobahrie A., Clatz O., Chrisochoides N.
+CRTC Lab and Computer Science Department, Old Dominion University
+
+
+Please use this identifier to cite or link to this publication: http://hdl.handle.net/10380/3382
+Published in The Insight Journal - 2012 January-December.
+Submitted by Yixun Liu on 08-21-2012.
+As part of the ITK v4 project efforts, we have developed ITK filters for
+physics-based non-rigid registration (PBNRR), which satisfies the following
+requirements: account for tissue properties in the registration, improve
+accuracy compared to rigid registration, and reduce execution time using GPU
+and multi-core accelerators. The implementation has three main components: (1)
+Feature Point Selection, (2) Block Matching (mapped to both multi-core and GPU
+processors), and (3) a Robust Finite Element Solver. The use of multi-core and
+GPU accelerators in ITK v4 provides substantial performance improvements. For
+example, in average for the non-rigid registration of brain MRIs, the
+performance of the Block Matching filter is about 12 times faster when 12
+hyperthreaded multi-cores are used and about 540 times faster when the Quadro
+6000 with 448 threads is used in Dell Workstation.
+
+
+Build ITK with 
+
+   cmake -DBUILD_SHARED_LIBS=ON  -DCMAKE_BUILD_TYPE=Debug -DBUILD_EXAMPLES=OFF -DBUILD_TESTING=OFF -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_INSTALL_PREFIX=$ITK_HOME -DITK_USE_GPU=ON -DOPENCL_INCLUDE_DIRS=$SDK_DIR/OpenCL/common/inc -DOPENCL_LIBRARIES=/usr/lib/nvidia-current/libOpenCL.so -DOPENCL_ROOT_DIR=$SDK_DIR/OpenCL  ../InsightToolkit-4.3.0; make -j 4;make install
