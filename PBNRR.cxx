@@ -144,16 +144,16 @@ int main(int argc, char *argv[] )
   gettimeofday(&tim, NULL);
   double startTime = tim.tv_sec + (tim.tv_usec/1000000.0);
 
-  // Create - Write ITK deformed image
-  InputImageType::Pointer deformedImage;
-  filter->CreateDeformedImage(deformedImage);
-  
-  std::cout << "Save Deformed Image at  : " << argv[WARPED_IMG] << std::endl;
-  typedef itk::ImageFileWriter<InputImageType> WriterType;
-  typename WriterType::Pointer deformedImageWriter = WriterType::New();
-  deformedImageWriter->SetFileName(argv[WARPED_IMG]);
-  deformedImageWriter->SetInput(deformedImage);
-  deformedImageWriter->Update();
+  // // Create - Write ITK deformed image
+  // InputImageType::Pointer deformedImage;
+  // filter->CreateDeformedImage(deformedImage);
+  // 
+  // std::cout << "Save Deformed Image at  : " << argv[WARPED_IMG] << std::endl;
+  // typedef itk::ImageFileWriter<InputImageType> WriterType;
+  // typename WriterType::Pointer deformedImageWriter = WriterType::New();
+  // deformedImageWriter->SetFileName(argv[WARPED_IMG]);
+  // deformedImageWriter->SetInput(deformedImage);
+  // deformedImageWriter->Update();
 
   gettimeofday(&tim, NULL);
   double endTime  = tim.tv_sec + (tim.tv_usec/1000000.0);
