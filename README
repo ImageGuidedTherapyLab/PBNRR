@@ -27,3 +27,70 @@ hyperthreaded multi-cores are used and about 540 times faster when the Quadro
 Build ITK with 
 
    cmake -DBUILD_SHARED_LIBS=ON  -DCMAKE_BUILD_TYPE=Debug -DBUILD_EXAMPLES=OFF -DBUILD_TESTING=OFF -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_INSTALL_PREFIX=$ITK_HOME -DITK_USE_GPU=ON -DOPENCL_INCLUDE_DIRS=$SDK_DIR/OpenCL/common/inc -DOPENCL_LIBRARIES=/usr/lib/nvidia-current/libOpenCL.so -DOPENCL_ROOT_DIR=$SDK_DIR/OpenCL  ../InsightToolkit-4.3.0; make -j 4;make install
+
+
+
+Example Output:
+
+SCRGP2$ cd InsightJournalInputsCases/Case1
+SCRGP2$ ls
+FixedImage.nii.gz  Mesh.vtk  MovingImage.nii.gz  MovingMask.nii.gz
+SCRGP2$ ../../PBNRR ./FixedImage.nii.gz ./MovingImage.nii.gz ./MovingMask.nii.gz ./Mesh.vtk test.vtk
+*********************************************
+Moving Image : ./MovingImage.nii.gz
+Fixed Image : ./FixedImage.nii.gz
+Mask Image : ./MovingMask.nii.gz
+Mesh : ./Mesh.vtk
+Warped Image : test.vtk
+*********************************************
+
+Filter: PhysicsBasedNonRigidRegistrationMethod (0x1fe6a40)
+  RTTI typeinfo:   itk::fem::PhysicsBasedNonRigidRegistrationMethod<itk::Image<float, 3u>, itk::Image<float, 3u>, itk::Image<float, 3u>, itk::Mesh<float, 3u, itk::DefaultStaticMeshTraits<float, 3u, 3u, float, float, float> >, itk::Image<itk::Vector<float, 3u>, 3u> >
+  Reference Count: 2
+  Modified Time: 92050
+  Debug: Off
+  Observers:
+    none
+  Inputs:
+    Primary: (0)
+    FixedImage: (0x1fcc0b0) *
+    MaskImage: (0x1fd5410) *
+    Mesh: (0x1fda240) *
+    MovingImage: (0x1fd0a20) *
+  Required Input Names: FixedImage, MaskImage, Mesh, MovingImage
+  Outputs:
+    Primary: (0x1ff2170)
+  NumberOfIndexedInputs: 0
+  NumberOfRequiredInputs: 0
+  NumberOfIndexedOutputs: 1
+  NumberOfRequiredOutputs: 1
+  Number Of Threads: 24
+  ReleaseDataFlag: Off
+  ReleaseDataBeforeUpdateFlag: Off
+  AbortGenerateData: Off
+  Progress: 0
+  Multithreader:
+    RTTI typeinfo:   itk::MultiThreader
+    Reference Count: 1
+    Modified Time: 91893
+    Debug: Off
+    Observers:
+      none
+    Thread Count: 24
+    Global Maximum Number Of Threads: 128
+    Global Default Number Of Threads: 24
+  CoordinateTolerance: 1e-06
+  DirectionTolerance: 1e-06
+  m_BlockRadius: [1, 1, 1]
+  m_SearchRadius: [5, 5, 5]
+  m_SelectFraction: 0.05
+  m_NonConnectivity: 0
+  m_ApproximationSteps: 10
+  m_OutlierRejectionSteps: 10
+
+Done.
+
+Time for creating the Deformed Image : 0 sec
+
+
+Total running time : 169.36 sec
