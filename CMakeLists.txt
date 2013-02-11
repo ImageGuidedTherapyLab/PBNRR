@@ -18,8 +18,10 @@ ENDIF(ITK_FOUND)
 
 
 ADD_EXECUTABLE(PBNRR PBNRR.cxx itkVTKTetrahedralMeshReader.hxx)
+ADD_EXECUTABLE(itkBlockMatchingImageFilterExample itkBlockMatchingImageFilterExample.cxx)
 
 TARGET_LINK_LIBRARIES(PBNRR ${ITK_LIBRARIES})
+TARGET_LINK_LIBRARIES(itkBlockMatchingImageFilterExample ${ITK_LIBRARIES})
 
 
  
