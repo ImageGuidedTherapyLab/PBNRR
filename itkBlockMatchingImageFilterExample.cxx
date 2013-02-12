@@ -34,6 +34,28 @@
 #include "itkTranslationTransform.h"
 #include "itkResampleImageFilter.h"
 
+// int WriteVTKPointsFile(filename,data)
+// {
+//     % number of points
+//     numPoints = size(data,1);
+// 
+//     %% Open VTK file.
+//     fid = fopen(filename, 'w', 'b');
+// 
+//     %% Write VTK header
+//     fprintf(fid, '# vtk DataFile Version 3.6\n');
+//     fprintf(fid, 'vtk output \n');
+//     fprintf(fid, 'ASCII\n');  
+//     fprintf(fid, 'DATASET POLYDATA\n');  
+//     fprintf(fid, 'POINTS %d float\n', numPoints);
+// 
+//     fprintf(fid, '%f %f %f \n', data');
+//     fprintf(fid, 'VERTICES 1 %d \n %d', numPoints+1,numPoints);
+//     fprintf(fid, ' %d ', [0:numPoints-1]);
+// 
+//     %% Close file.
+//     fclose(fid);
+// }
 
 int main( int argc, char * argv[] )
 {
@@ -186,9 +208,9 @@ int main( int argc, char * argv[] )
   typedef PointSetType::PointsContainer::ConstIterator                                   PointIteratorType;
   typedef BlockMatchingFilterType::DisplacementsType::PointDataContainer::ConstIterator  PointDataIteratorType;
 
-  PointIteratorType pointItr = featureSelectionFilter->GetOutput()->GetPoints()->Begin();
-  PointIteratorType pointEnd = featureSelectionFilter->GetOutput()->GetPoints()->End();
-  PointDataIteratorType displItr = displacements->GetPointData()->Begin();
+  PointIteratorType         pointItr = featureSelectionFilter->GetOutput()->GetPoints()->Begin();
+  PointIteratorType         pointEnd = featureSelectionFilter->GetOutput()->GetPoints()->End();
+  PointDataIteratorType     displItr = displacements->GetPointData()->Begin();
 
   // define colors
   OutputPixelType red;
@@ -230,6 +252,30 @@ int main( int argc, char * argv[] )
     pointItr++;
     displItr++;
     }
+
+  // write vtk file of landmark pairs
+  std::ofstream SourceFile,TargetFile,SimilarityFile;
+  SourceFile.open ("Source.txt");
+  TargetFile.open ("Target.txt");
+  SimilarityFile.open ("Similarity.txt");
+  // similarities iterator
+  typedef BlockMatchingFilterType::SimilaritiesType::PointDataContainer::ConstIterator   SimilaritiestIteratorType;
+  SimilaritiestIteratorType similItr = similarities->GetPointData()->Begin(); 
+  // reset iterator
+  pointItr = featureSelectionFilter->GetOutput()->GetPoints()->Begin();
+  displItr = displacements->GetPointData()->Begin();
+  while ( pointItr != pointEnd )
+    {
+    SourceFile     << pointItr.Value()[0]<<" "<< pointItr.Value()[1]<<" "<< pointItr.Value()[2] << std::endl;
+    TargetFile     << displItr.Value()[0]<<" "<< displItr.Value()[1]<<" "<< displItr.Value()[2] << std::endl;
+    SimilarityFile << similItr.Value() << std::endl;
+    pointItr++;
+    displItr++;
+    similItr++;
+    }
+  SourceFile.close();
+  TargetFile.close();
+  SimilarityFile.close(); 
 
   //Set up the writer
   typedef itk::ImageFileWriter< OutputImageType >  WriterType;
