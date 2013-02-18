@@ -33,6 +33,7 @@
 #include "itkScalarToRGBColormapImageFilter.h"
 #include "itkTranslationTransform.h"
 #include "itkResampleImageFilter.h"
+#include "GetPot.h"
 
 // int WriteVTKPointsFile(filename,data)
 // {
@@ -62,35 +63,43 @@ int main( int argc, char * argv[] )
   if( argc < 2 )
     {
     std::cerr << "Usage: " << std::endl;
-    std::cerr << " itkitkBlockMatchingImageFilterTest inputImageFile outputImageFile [Mask File]" << std::endl;
+    std::cerr << " itkitkBlockMatchingImageFilterExample IniFile" << std::endl;
     return EXIT_FAILURE;
     }
 
-  const double selectFraction = 0.01;
+  GetPot controlfile( argv[1] );
+
+  const double selectFraction = controlfile("featureselection/selectionfraction",0.01);
 
   typedef unsigned char                  InputPixelType;
-  typedef itk::RGBPixel<InputPixelType>  OutputPixelType;
   static const unsigned int Dimension = 3;
-
   typedef itk::Image< InputPixelType,  Dimension >  InputImageType;
-  typedef itk::Image< OutputPixelType, Dimension >  OutputImageType;
 
+  //typedef itk::RGBPixel<InputPixelType>  OutputPixelType;
+  //typedef itk::Image< OutputPixelType, Dimension >  OutputImageType;
+
+  // set anisotropic match and search windows
   // Parameters used for FS and BM
   typedef InputImageType::SizeType RadiusType;
   RadiusType blockRadius;
-  blockRadius.Fill( 2 );
+  blockRadius.SetElement( 0, 4 );
+  blockRadius.SetElement( 1, 3 );
+  blockRadius.SetElement( 2, 2 );
 
   RadiusType searchRadius;
-  searchRadius.Fill( 7 );
+  //searchRadius.Fill( 7 );
+  searchRadius.SetElement( 0, 7 );
+  searchRadius.SetElement( 1, 6 );
+  searchRadius.SetElement( 2, 5 );
 
   typedef itk::ImageFileReader< InputImageType >  ReaderType;
 
   //Set up the reader
-  ReaderType::Pointer reader = ReaderType::New();
-  reader->SetFileName( argv[1] );
+  ReaderType::Pointer readerSource = ReaderType::New();
+  readerSource->SetFileName( controlfile("image/source","./SourceNotFound") );
   try
     {
-    reader->Update();
+    readerSource->Update();
     }
   catch( itk::ExceptionObject & e )
     {
@@ -98,25 +107,25 @@ int main( int argc, char * argv[] )
     return EXIT_FAILURE;
     }
 
-  // Reduce region of interest by SEARCH_RADIUS
-  typedef itk::RegionOfInterestImageFilter< InputImageType, InputImageType >  RegionOfInterestFilterType;
+  // // Reduce region of interest by SEARCH_RADIUS
+  // typedef itk::RegionOfInterestImageFilter< InputImageType, InputImageType >  RegionOfInterestFilterType;
 
-  RegionOfInterestFilterType::Pointer regionOfInterestFilter = RegionOfInterestFilterType::New();
+  // RegionOfInterestFilterType::Pointer regionOfInterestFilter = RegionOfInterestFilterType::New();
 
-  regionOfInterestFilter->SetInput( reader->GetOutput() );
+  // regionOfInterestFilter->SetInput( readerSource->GetOutput() );
 
-  RegionOfInterestFilterType::RegionType regionOfInterest = reader->GetOutput()->GetLargestPossibleRegion();
+  // RegionOfInterestFilterType::RegionType regionOfInterest = readerSource->GetOutput()->GetLargestPossibleRegion();
 
-  RegionOfInterestFilterType::RegionType::IndexType regionOfInterestIndex = regionOfInterest.GetIndex();
-  regionOfInterestIndex += searchRadius;
-  regionOfInterest.SetIndex( regionOfInterestIndex );
+  // RegionOfInterestFilterType::RegionType::IndexType regionOfInterestIndex = regionOfInterest.GetIndex();
+  // regionOfInterestIndex += searchRadius;
+  // regionOfInterest.SetIndex( regionOfInterestIndex );
 
-  RegionOfInterestFilterType::RegionType::SizeType regionOfInterestSize = regionOfInterest.GetSize();
-  regionOfInterestSize -= searchRadius + searchRadius;
-  regionOfInterest.SetSize( regionOfInterestSize );
+  // RegionOfInterestFilterType::RegionType::SizeType regionOfInterestSize = regionOfInterest.GetSize();
+  // regionOfInterestSize -= searchRadius + searchRadius;
+  // regionOfInterest.SetSize( regionOfInterestSize );
 
-  regionOfInterestFilter->SetRegionOfInterest( regionOfInterest );
-  regionOfInterestFilter->Update();
+  // regionOfInterestFilter->SetRegionOfInterest( regionOfInterest );
+  // regionOfInterestFilter->Update();
 
   typedef itk::MaskFeaturePointSelectionFilter< InputImageType >  FeatureSelectionFilterType;
   typedef FeatureSelectionFilterType::FeaturePointsType           PointSetType;
@@ -127,34 +136,53 @@ int main( int argc, char * argv[] )
   // Feature Selection
   FeatureSelectionFilterType::Pointer featureSelectionFilter = FeatureSelectionFilterType::New();
 
-  featureSelectionFilter->SetInput( regionOfInterestFilter->GetOutput() );
+  featureSelectionFilter->SetInput( readerSource->GetOutput() );
   featureSelectionFilter->SetSelectFraction( selectFraction );
   featureSelectionFilter->SetBlockRadius( blockRadius );
   featureSelectionFilter->ComputeStructureTensorsOff();
 
-  // Create transformed image from input to match with
-  typedef itk::TranslationTransform< double, Dimension > TranslationTransformType;
-  TranslationTransformType::Pointer transform = TranslationTransformType::New();
-  TranslationTransformType::OutputVectorType translation;
-  // move each pixel in input image 5 pixels along first(0) dimension
-  translation[0] = 20.0;
-  translation[1] = 0.0;
-  translation[2] = 0.0;
-  transform->Translate(translation);
+  // check if user input mask image
+  std::string MaskFileName( controlfile("image/mask","MaskNotFound") ) ;
+  if (MaskFileName.find("MaskNotFound")!=std::string::npos)
+   {
+     std::cout << "No Mask Image input... " << std::endl;
+     std::cout << "No Mask Image input... " << std::endl;
+   }
+  else
+   {
+    ReaderType::Pointer readerMask = ReaderType::New();
+    readerMask->SetFileName( MaskFileName.c_str() );
+    try
+      {
+        readerMask->Update();
+      }
+    catch( itk::ExceptionObject & e )
+      {
+        std::cerr << "Error in reading the mask image image: " <<  MaskFileName << e << std::endl;
+      }
+    // set mask image
+    featureSelectionFilter->SetMaskImage( readerMask->GetOutput() );
+   }
 
-  typedef itk::ResampleImageFilter< InputImageType, InputImageType > ResampleImageFilterType;
-  ResampleImageFilterType::Pointer resampleFilter = ResampleImageFilterType::New();
-  resampleFilter->SetTransform( transform.GetPointer() );
-  resampleFilter->SetInput( reader->GetOutput() );
-  resampleFilter->SetReferenceImage( reader->GetOutput() );
-  resampleFilter->UseReferenceImageOn();
+  // read in second image
+  ReaderType::Pointer readerTarget = ReaderType::New();
+  readerTarget->SetFileName( controlfile("image/target","./TargetNotFound") );
+  try
+    {
+    readerTarget->Update();
+    }
+  catch( itk::ExceptionObject & e )
+    {
+    std::cerr << "Error in reading the input image: " << e << std::endl;
+    return EXIT_FAILURE;
+    }
 
   typedef itk::BlockMatchingImageFilter< InputImageType >  BlockMatchingFilterType;
   BlockMatchingFilterType::Pointer blockMatchingFilter = BlockMatchingFilterType::New();
 
   // inputs (all required)
-  blockMatchingFilter->SetFixedImage( resampleFilter->GetOutput() );
-  blockMatchingFilter->SetMovingImage( reader->GetOutput() );
+  blockMatchingFilter->SetFixedImage(  readerSource->GetOutput() );
+  blockMatchingFilter->SetMovingImage( readerTarget->GetOutput() );
   blockMatchingFilter->SetFeaturePoints( featureSelectionFilter->GetOutput() );
 
   // parameters (all optional)
@@ -186,23 +214,23 @@ int main( int argc, char * argv[] )
     return EXIT_FAILURE;
     }
 
-  // create RGB copy of input image
-  typedef itk::ScalarToRGBColormapImageFilter< InputImageType, OutputImageType >  RGBFilterType;
-  RGBFilterType::Pointer colormapImageFilter = RGBFilterType::New();
+  // // create RGB copy of input image
+  // typedef itk::ScalarToRGBColormapImageFilter< InputImageType, OutputImageType >  RGBFilterType;
+  // RGBFilterType::Pointer colormapImageFilter = RGBFilterType::New();
 
-  colormapImageFilter->SetColormap( RGBFilterType::Grey );
-  colormapImageFilter->SetInput( reader->GetOutput() );
-  try
-    {
-    colormapImageFilter->Update();
-    }
-  catch ( itk::ExceptionObject &err )
-    {
-    std::cerr << err << std::endl;
-    return EXIT_FAILURE;
-    }
+  // colormapImageFilter->SetColormap( RGBFilterType::Grey );
+  // colormapImageFilter->SetInput( readerSource->GetOutput() );
+  // try
+  //   {
+  //   colormapImageFilter->Update();
+  //   }
+  // catch ( itk::ExceptionObject &err )
+  //   {
+  //   std::cerr << err << std::endl;
+  //   return EXIT_FAILURE;
+  //   }
 
-  OutputImageType::Pointer outputImage = colormapImageFilter->GetOutput();
+  // OutputImageType::Pointer outputImage = colormapImageFilter->GetOutput();
 
   // Highlight the feature points identified in the output image
   typedef PointSetType::PointsContainer::ConstIterator                                   PointIteratorType;
@@ -212,52 +240,61 @@ int main( int argc, char * argv[] )
   PointIteratorType         pointEnd = featureSelectionFilter->GetOutput()->GetPoints()->End();
   PointDataIteratorType     displItr = displacements->GetPointData()->Begin();
 
-  // define colors
-  OutputPixelType red;
-  red.SetRed( 255 );
-  red.SetGreen( 0 );
-  red.SetBlue( 0 );
+  // // define colors
+  // OutputPixelType red;
+  // red.SetRed( 255 );
+  // red.SetGreen( 0 );
+  // red.SetBlue( 0 );
 
-  OutputPixelType green;
-  green.SetRed( 0 );
-  green.SetGreen( 255 );
-  green.SetBlue( 0 );
+  // OutputPixelType green;
+  // green.SetRed( 0 );
+  // green.SetGreen( 255 );
+  // green.SetBlue( 0 );
 
-  OutputPixelType blue;
-  blue.SetRed( 0 );
-  blue.SetGreen( 0 );
-  blue.SetBlue( 255 );
+  // OutputPixelType blue;
+  // blue.SetRed( 0 );
+  // blue.SetGreen( 0 );
+  // blue.SetBlue( 255 );
 
-  OutputImageType::IndexType index;
-  while ( pointItr != pointEnd )
-    {
-    if ( outputImage->TransformPhysicalPointToIndex(pointItr.Value(), index) )
-      {
-      OutputImageType::IndexType displ;
-      outputImage->TransformPhysicalPointToIndex( pointItr.Value() + displItr.Value(), displ );
+  // OutputImageType::IndexType index;
+  // while ( pointItr != pointEnd )
+  //   {
+  //   if ( outputImage->TransformPhysicalPointToIndex(pointItr.Value(), index) )
+  //     {
+  //     OutputImageType::IndexType displ;
+  //     outputImage->TransformPhysicalPointToIndex( pointItr.Value() + displItr.Value(), displ );
 
-      // draw line between old and new location of a point in blue
-      itk::LineIterator< OutputImageType > lineIter( outputImage, index, displ );
-      for ( lineIter.GoToBegin(); !lineIter.IsAtEnd(); ++lineIter )
-        {
-        lineIter.Set( blue );
-        }
+  //     // draw line between old and new location of a point in blue
+  //     itk::LineIterator< OutputImageType > lineIter( outputImage, index, displ );
+  //     for ( lineIter.GoToBegin(); !lineIter.IsAtEnd(); ++lineIter )
+  //       {
+  //       lineIter.Set( blue );
+  //       }
 
-      // mark old location of a point in green
-      outputImage->SetPixel(index, green);
+  //     // mark old location of a point in green
+  //     outputImage->SetPixel(index, green);
 
-      // mark new location of a point in red
-      outputImage->SetPixel(displ, red);
-      }
-    pointItr++;
-    displItr++;
-    }
+  //     // mark new location of a point in red
+  //     outputImage->SetPixel(displ, red);
+  //     }
+  //   pointItr++;
+  //   displItr++;
+  //   }
 
-  // write vtk file of landmark pairs
-  std::ofstream SourceFile,TargetFile,SimilarityFile;
-  SourceFile.open ("Source.txt");
-  TargetFile.open ("Target.txt");
-  SimilarityFile.open ("Similarity.txt");
+  // write txt files of block matching data
+  //   source, target, displacements, similarity
+  std::ofstream      SourceFile,    TargetFile,    DisplacementFile,    SimilarityFile;
+  std::ostringstream SourceFileName,TargetFileName,DisplacementFileName,SimilarityFileName;
+
+  SourceFileName       << controlfile("image/Output","./Output") <<  "Source.txt"     ;
+  TargetFileName       << controlfile("image/Output","./Output") <<  "Target.txt"     ;
+  DisplacementFileName << controlfile("image/Output","./Output") <<  "Displacment.txt";
+  SimilarityFileName   << controlfile("image/Output","./Output") <<  "Similarity.txt" ;
+
+  SourceFile.open      ( SourceFileName.str().c_str()       );
+  TargetFile.open      ( TargetFileName.str().c_str()       );
+  DisplacementFile.open( DisplacementFileName.str().c_str() );
+  SimilarityFile.open  ( SimilarityFileName.str().c_str()   );
   // similarities iterator
   typedef BlockMatchingFilterType::SimilaritiesType::PointDataContainer::ConstIterator   SimilaritiestIteratorType;
   SimilaritiestIteratorType similItr = similarities->GetPointData()->Begin(); 
@@ -266,9 +303,12 @@ int main( int argc, char * argv[] )
   displItr = displacements->GetPointData()->Begin();
   while ( pointItr != pointEnd )
     {
-    SourceFile     << pointItr.Value()[0]<<" "<< pointItr.Value()[1]<<" "<< pointItr.Value()[2] << std::endl;
-    TargetFile     << displItr.Value()[0]<<" "<< displItr.Value()[1]<<" "<< displItr.Value()[2] << std::endl;
-    SimilarityFile << similItr.Value() << std::endl;
+    SourceFile       << pointItr.Value()[0]<<" "<< pointItr.Value()[1]<<" "<< pointItr.Value()[2] << std::endl;
+    DisplacementFile << displItr.Value()[0]<<" "<< displItr.Value()[1]<<" "<< displItr.Value()[2] << std::endl;
+    TargetFile       << pointItr.Value()[0] + displItr.Value()[0] <<" "
+                     << pointItr.Value()[1] + displItr.Value()[1] <<" "
+                     << pointItr.Value()[2] + displItr.Value()[2] << std::endl;
+    SimilarityFile   << similItr.Value() << std::endl;
     pointItr++;
     displItr++;
     similItr++;
@@ -277,21 +317,21 @@ int main( int argc, char * argv[] )
   TargetFile.close();
   SimilarityFile.close(); 
 
-  //Set up the writer
-  typedef itk::ImageFileWriter< OutputImageType >  WriterType;
-  WriterType::Pointer writer = WriterType::New();
+  // //Set up the writer
+  // typedef itk::ImageFileWriter< OutputImageType >  WriterType;
+  // WriterType::Pointer writer = WriterType::New();
 
-  writer->SetFileName( argv[2] );
-  writer->SetInput( outputImage );
-  try
-    {
-    writer->Update();
-    }
-  catch( itk::ExceptionObject & e )
-    {
-    std::cerr << "Error in writing the output image:" << e << std::endl;
-    return EXIT_FAILURE;
-    }
+  // writer->SetFileName( argv[3] );
+  // writer->SetInput( outputImage );
+  // try
+  //   {
+  //   writer->Update();
+  //   }
+  // catch( itk::ExceptionObject & e )
+  //   {
+  //   std::cerr << "Error in writing the output image:" << e << std::endl;
+  //   return EXIT_FAILURE;
+  //   }
 
   return EXIT_SUCCESS;
 }

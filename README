@@ -2,6 +2,17 @@ This the the code downloaded from:
 
 http://www.insight-journal.org/browse/publication/876
 
+GPU Version of block matching still under review feb 2013
+
+but may be obtained from 
+
+http://review.source.kitware.com/#/c/6401/
+git fetch http://review.source.kitware.com/p/ITK refs/changes/01/6401/2 && git checkout FETCH_HEAD -b PBNRR-GPUBlockMatching
+
+
+using getpot 1.1.18 for input parsing:
+wget http://downloads.sourceforge.net/project/getpot/GetPot%20C%2B%2B/1.1.18/getpot-c%2B%2B-1.1.18.tar.gz
+
 An ITK Implementation of Physics-based Non-rigid Registration Method
 Liu Y., Kot A., Drakopoulos F., Fedorov A., Enquobahrie A., Clatz O., Chrisochoides N.
 CRTC Lab and Computer Science Department, Old Dominion University
