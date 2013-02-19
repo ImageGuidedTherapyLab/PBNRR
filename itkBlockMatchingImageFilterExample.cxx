@@ -188,26 +188,26 @@ int main( int argc, char * argv[] )
   featureSelectionFilter->ComputeStructureTensorsOff();
 
   // check if user input mask image
-  std::string MaskFileName( controlfile("image/mask","MaskNotFound") ) ;
-  if (MaskFileName.find("MaskNotFound")!=std::string::npos)
+  std::string MovingMaskFileName( controlfile("image/movingmask","MovingMaskNotFound") ) ;
+  if (MovingMaskFileName.find("MovingMaskNotFound")!=std::string::npos)
    {
-     std::cout << "No Mask Image input... " << std::endl;
-     std::cout << "No Mask Image input... " << std::endl;
+     std::cout << "No Moving Image Mask input... " << std::endl;
+     std::cout << "No Moving Image Mask input... " << std::endl;
    }
   else
    {
-    ReaderType::Pointer readerMask = ReaderType::New();
-    readerMask->SetFileName( MaskFileName.c_str() );
+    ReaderType::Pointer readerMovingMask = ReaderType::New();
+    readerMovingMask->SetFileName( MovingMaskFileName.c_str() );
     try
       {
-        readerMask->Update();
+        readerMovingMask->Update();
       }
     catch( itk::ExceptionObject & e )
       {
-        std::cerr << "Error in reading the mask image image: " <<  MaskFileName << e << std::endl;
+        std::cerr << "Error in reading the moving image mask image: " <<  MovingMaskFileName << e << std::endl;
       }
     // set mask image
-    featureSelectionFilter->SetMaskImage( readerMask->GetOutput() );
+    featureSelectionFilter->SetMaskImage( readerMovingMask->GetOutput() );
    }
 
   //Set up the reader
