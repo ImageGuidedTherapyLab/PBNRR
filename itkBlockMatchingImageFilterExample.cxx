@@ -62,8 +62,24 @@ int main( int argc, char * argv[] )
 {
   if( argc < 2 )
     {
-    std::cerr << "Usage: " << std::endl;
-    std::cerr << " itkitkBlockMatchingImageFilterExample IniFile" << std::endl;
+    std::cerr << "Usage: " << std::endl<< std::endl;
+    std::cerr << " itkitkBlockMatchingImageFilterExample IniFile" << std::endl << std::endl;
+    std::cerr << "   step one: find all feature points on a moving image" << std::endl;
+    std::cerr << "             within a variance threshold              " << std::endl;
+    std::cerr << "   step two: within search window on fixed image      " << std::endl;
+    std::cerr << "             find block radius window center location " << std::endl;
+    std::cerr << "             with the highest similarity to the moving" << std::endl;
+    std::cerr << "             image feature point" << std::endl << std::endl;
+    std::cerr << "   assumption: the search window on the fixed image   " << std::endl;
+    std::cerr << "               is the feature point location in       " << std::endl;
+    std::cerr << "               physical space +- the search radius    " << std::endl;
+    std::cerr << "               ie, all point match pairs should be    " << std::endl;
+    std::cerr << "               within the search radius neighborhood  " << std::endl;
+    std::cerr << "               defined the the physical space location" << std::endl;
+    std::cerr << "               of the feature point +- the search radius" << std::endl;
+    std::cerr << "   assumption: the fixed and moving image should have " << std::endl;
+    std::cerr << "               the same dimensions    " << std::endl<< std::endl;
+    std::cerr << "   ...ie, rigid registration and resampling are probably needed" << std::endl << std::endl;
     return EXIT_FAILURE;
     }
 
@@ -98,12 +114,12 @@ int main( int argc, char * argv[] )
 
   typedef itk::ImageFileReader< InputImageType >  ReaderType;
 
-  //Set up the reader
-  ReaderType::Pointer readerSource = ReaderType::New();
-  readerSource->SetFileName( controlfile("image/source","./SourceNotFound") );
+  // read in moving image first and identify the feature points
+  ReaderType::Pointer readerMoving = ReaderType::New();
+  readerMoving->SetFileName( controlfile("image/moving","./MovingNotFound") );
   try
     {
-    readerSource->Update();
+    readerMoving->Update();
     }
   catch( itk::ExceptionObject & e )
     {
@@ -116,20 +132,45 @@ int main( int argc, char * argv[] )
 
   RegionOfInterestFilterType::Pointer regionOfInterestFilter = RegionOfInterestFilterType::New();
 
-  regionOfInterestFilter->SetInput( readerSource->GetOutput() );
+  regionOfInterestFilter->SetInput( readerMoving->GetOutput() );
 
-  RegionOfInterestFilterType::RegionType regionOfInterest = readerSource->GetOutput()->GetLargestPossibleRegion();
+  RegionOfInterestFilterType::RegionType regionOfInterest = readerMoving->GetOutput()->GetLargestPossibleRegion();
 
+  // set the starting point of the ROI
   RegionOfInterestFilterType::RegionType::IndexType regionOfInterestIndex = regionOfInterest.GetIndex();
   regionOfInterestIndex += searchRadius;
   regionOfInterest.SetIndex( regionOfInterestIndex );
 
+  // the ROI size is the full size minus the radius on the beging
+  //   and minus the radius on the end 
   RegionOfInterestFilterType::RegionType::SizeType regionOfInterestSize = regionOfInterest.GetSize();
   regionOfInterestSize -= searchRadius + searchRadius;
   regionOfInterest.SetSize( regionOfInterestSize );
 
   regionOfInterestFilter->SetRegionOfInterest( regionOfInterest );
   regionOfInterestFilter->Update();
+
+  regionOfInterestFilter->DebugOn();
+  if ( regionOfInterestFilter->GetDebug() )
+   {
+     std::ostringstream ROIFileName;
+     ROIFileName  << controlfile("image/output","./Output") << "ROI.mha" ;
+     //Set up the writer
+     typedef itk::ImageFileWriter< InputImageType >  WriterType;
+     WriterType::Pointer writer = WriterType::New();
+
+     writer->SetFileName( ROIFileName.str() );
+     writer->SetInput( regionOfInterestFilter->GetOutput() );
+     try
+       {
+       writer->Update();
+       }
+     catch( itk::ExceptionObject & e )
+       {
+       std::cerr << "Error in writing the output image:" << e << std::endl;
+       return EXIT_FAILURE;
+       }
+   }
 
   // typedefs
   typedef itk::MaskFeaturePointSelectionFilter< InputImageType >  FeatureSelectionFilterType;
@@ -169,12 +210,12 @@ int main( int argc, char * argv[] )
     featureSelectionFilter->SetMaskImage( readerMask->GetOutput() );
    }
 
-  // read in second image
-  ReaderType::Pointer readerTarget = ReaderType::New();
-  readerTarget->SetFileName( controlfile("image/target","./TargetNotFound") );
+  //Set up the reader
+  ReaderType::Pointer readerFixed = ReaderType::New();
+  readerFixed->SetFileName( controlfile("image/fixed","./FixedNotFound") );
   try
     {
-    readerTarget->Update();
+    readerFixed->Update();
     }
   catch( itk::ExceptionObject & e )
     {
@@ -182,12 +223,13 @@ int main( int argc, char * argv[] )
     return EXIT_FAILURE;
     }
 
+
   typedef itk::BlockMatchingImageFilter< InputImageType >  BlockMatchingFilterType;
   BlockMatchingFilterType::Pointer blockMatchingFilter = BlockMatchingFilterType::New();
 
   // inputs (all required)
-  blockMatchingFilter->SetFixedImage(  readerSource->GetOutput() );
-  blockMatchingFilter->SetMovingImage( readerTarget->GetOutput() );
+  blockMatchingFilter->SetFixedImage(  readerFixed->GetOutput() );
+  blockMatchingFilter->SetMovingImage( readerMoving->GetOutput() );
   blockMatchingFilter->SetFeaturePoints( featureSelectionFilter->GetOutput() );
 
   // parameters (all optional)
@@ -224,7 +266,7 @@ int main( int argc, char * argv[] )
   // RGBFilterType::Pointer colormapImageFilter = RGBFilterType::New();
 
   // colormapImageFilter->SetColormap( RGBFilterType::Grey );
-  // colormapImageFilter->SetInput( readerSource->GetOutput() );
+  // colormapImageFilter->SetInput( readerMoving->GetOutput() );
   // try
   //   {
   //   colormapImageFilter->Update();
