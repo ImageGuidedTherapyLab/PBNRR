@@ -79,18 +79,22 @@ int main( int argc, char * argv[] )
   //typedef itk::Image< OutputPixelType, Dimension >  OutputImageType;
 
   // set anisotropic match and search windows
+  // ini file should of the form
+  // [blockmatch]
+  // blockradius  = '2 2 3'
+  // searchradius = '5 5 7'
+  // 
   // Parameters used for FS and BM
   typedef InputImageType::SizeType RadiusType;
-  RadiusType blockRadius;
-  blockRadius.SetElement( 0, 4 );
-  blockRadius.SetElement( 1, 3 );
-  blockRadius.SetElement( 2, 2 );
+  RadiusType blockRadius, searchRadius;
+  for (int icoord = 0; icoord < Dimension; icoord++)
+   {
+    blockRadius.SetElement(  icoord, 
+                             controlfile("blockmatch/blockradius" , 3, icoord) );
+    searchRadius.SetElement( icoord,
+                             controlfile("blockmatch/searchradius", 7, icoord) );
+   }
 
-  RadiusType searchRadius;
-  //searchRadius.Fill( 7 );
-  searchRadius.SetElement( 0, 7 );
-  searchRadius.SetElement( 1, 6 );
-  searchRadius.SetElement( 2, 5 );
 
   typedef itk::ImageFileReader< InputImageType >  ReaderType;
 
@@ -107,26 +111,27 @@ int main( int argc, char * argv[] )
     return EXIT_FAILURE;
     }
 
-  // // Reduce region of interest by SEARCH_RADIUS
-  // typedef itk::RegionOfInterestImageFilter< InputImageType, InputImageType >  RegionOfInterestFilterType;
+  // Reduce region of interest by SEARCH_RADIUS
+  typedef itk::RegionOfInterestImageFilter< InputImageType, InputImageType >  RegionOfInterestFilterType;
 
-  // RegionOfInterestFilterType::Pointer regionOfInterestFilter = RegionOfInterestFilterType::New();
+  RegionOfInterestFilterType::Pointer regionOfInterestFilter = RegionOfInterestFilterType::New();
 
-  // regionOfInterestFilter->SetInput( readerSource->GetOutput() );
+  regionOfInterestFilter->SetInput( readerSource->GetOutput() );
 
-  // RegionOfInterestFilterType::RegionType regionOfInterest = readerSource->GetOutput()->GetLargestPossibleRegion();
+  RegionOfInterestFilterType::RegionType regionOfInterest = readerSource->GetOutput()->GetLargestPossibleRegion();
 
-  // RegionOfInterestFilterType::RegionType::IndexType regionOfInterestIndex = regionOfInterest.GetIndex();
-  // regionOfInterestIndex += searchRadius;
-  // regionOfInterest.SetIndex( regionOfInterestIndex );
+  RegionOfInterestFilterType::RegionType::IndexType regionOfInterestIndex = regionOfInterest.GetIndex();
+  regionOfInterestIndex += searchRadius;
+  regionOfInterest.SetIndex( regionOfInterestIndex );
 
-  // RegionOfInterestFilterType::RegionType::SizeType regionOfInterestSize = regionOfInterest.GetSize();
-  // regionOfInterestSize -= searchRadius + searchRadius;
-  // regionOfInterest.SetSize( regionOfInterestSize );
+  RegionOfInterestFilterType::RegionType::SizeType regionOfInterestSize = regionOfInterest.GetSize();
+  regionOfInterestSize -= searchRadius + searchRadius;
+  regionOfInterest.SetSize( regionOfInterestSize );
 
-  // regionOfInterestFilter->SetRegionOfInterest( regionOfInterest );
-  // regionOfInterestFilter->Update();
+  regionOfInterestFilter->SetRegionOfInterest( regionOfInterest );
+  regionOfInterestFilter->Update();
 
+  // typedefs
   typedef itk::MaskFeaturePointSelectionFilter< InputImageType >  FeatureSelectionFilterType;
   typedef FeatureSelectionFilterType::FeaturePointsType           PointSetType;
 
@@ -136,7 +141,7 @@ int main( int argc, char * argv[] )
   // Feature Selection
   FeatureSelectionFilterType::Pointer featureSelectionFilter = FeatureSelectionFilterType::New();
 
-  featureSelectionFilter->SetInput( readerSource->GetOutput() );
+  featureSelectionFilter->SetInput( regionOfInterestFilter->GetOutput() );
   featureSelectionFilter->SetSelectFraction( selectFraction );
   featureSelectionFilter->SetBlockRadius( blockRadius );
   featureSelectionFilter->ComputeStructureTensorsOff();
@@ -286,10 +291,10 @@ int main( int argc, char * argv[] )
   std::ofstream      SourceFile,    TargetFile,    DisplacementFile,    SimilarityFile;
   std::ostringstream SourceFileName,TargetFileName,DisplacementFileName,SimilarityFileName;
 
-  SourceFileName       << controlfile("image/Output","./Output") <<  "Source.txt"     ;
-  TargetFileName       << controlfile("image/Output","./Output") <<  "Target.txt"     ;
-  DisplacementFileName << controlfile("image/Output","./Output") <<  "Displacment.txt";
-  SimilarityFileName   << controlfile("image/Output","./Output") <<  "Similarity.txt" ;
+  SourceFileName       << controlfile("image/output","./Output") <<  "Source.txt"      ;
+  TargetFileName       << controlfile("image/output","./Output") <<  "Target.txt"      ;
+  DisplacementFileName << controlfile("image/output","./Output") <<  "Displacement.txt";
+  SimilarityFileName   << controlfile("image/output","./Output") <<  "Similarity.txt"  ;
 
   SourceFile.open      ( SourceFileName.str().c_str()       );
   TargetFile.open      ( TargetFileName.str().c_str()       );
