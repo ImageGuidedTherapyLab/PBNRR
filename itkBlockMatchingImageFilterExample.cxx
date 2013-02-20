@@ -211,8 +211,8 @@ int main( int argc, char * argv[] )
   blockMatchingFilter->SetFeaturePoints( featureSelectionFilter->GetOutput() );
 
   // parameters (all optional)
-  blockMatchingFilter->SetNumberOfThreads(  1  );
-  blockMatchingFilter->DebugOn( );
+  //blockMatchingFilter->SetNumberOfThreads( controlfile("exec/threads" , 1 )  );
+  //blockMatchingFilter->DebugOn( );
   blockMatchingFilter->SetBlockRadius( blockRadius );
   blockMatchingFilter->SetSearchRadius( searchRadius );
 
