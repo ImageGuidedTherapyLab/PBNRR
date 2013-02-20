@@ -29,34 +29,12 @@
 #include "itkMultiThreader.h"
 #include "itkRegionOfInterestImageFilter.h"
 #include "itkMaskFeaturePointSelectionFilter.h"
-#include "itkBlockMatchingImageFilter.h"
+#include "itkBlockMatchingVaryImageFilter.h"
 #include "itkScalarToRGBColormapImageFilter.h"
 #include "itkTranslationTransform.h"
 #include "itkResampleImageFilter.h"
 #include "GetPot.h"
 
-// int WriteVTKPointsFile(filename,data)
-// {
-//     % number of points
-//     numPoints = size(data,1);
-// 
-//     %% Open VTK file.
-//     fid = fopen(filename, 'w', 'b');
-// 
-//     %% Write VTK header
-//     fprintf(fid, '# vtk DataFile Version 3.6\n');
-//     fprintf(fid, 'vtk output \n');
-//     fprintf(fid, 'ASCII\n');  
-//     fprintf(fid, 'DATASET POLYDATA\n');  
-//     fprintf(fid, 'POINTS %d float\n', numPoints);
-// 
-//     fprintf(fid, '%f %f %f \n', data');
-//     fprintf(fid, 'VERTICES 1 %d \n %d', numPoints+1,numPoints);
-//     fprintf(fid, ' %d ', [0:numPoints-1]);
-// 
-//     %% Close file.
-//     fclose(fid);
-// }
 
 int main( int argc, char * argv[] )
 {
@@ -224,7 +202,7 @@ int main( int argc, char * argv[] )
     }
 
 
-  typedef itk::BlockMatchingImageFilter< InputImageType >  BlockMatchingFilterType;
+  typedef itk::BlockMatchingVaryImageFilter< InputImageType >  BlockMatchingFilterType;
   BlockMatchingFilterType::Pointer blockMatchingFilter = BlockMatchingFilterType::New();
 
   // inputs (all required)
@@ -233,6 +211,8 @@ int main( int argc, char * argv[] )
   blockMatchingFilter->SetFeaturePoints( featureSelectionFilter->GetOutput() );
 
   // parameters (all optional)
+  blockMatchingFilter->SetNumberOfThreads(  1  );
+  blockMatchingFilter->DebugOn( );
   blockMatchingFilter->SetBlockRadius( blockRadius );
   blockMatchingFilter->SetSearchRadius( searchRadius );
 
