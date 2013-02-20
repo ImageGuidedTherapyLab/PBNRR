@@ -66,6 +66,7 @@ int main( int argc, char * argv[] )
   const double selectFraction = controlfile("featureselection/selectionfraction",0.01);
 
   typedef unsigned char                  InputPixelType;
+  typedef double                         NumpyArrayType;
   static const unsigned int Dimension = 3;
   typedef itk::Image< InputPixelType,  Dimension >  InputImageType;
 
@@ -187,6 +188,36 @@ int main( int argc, char * argv[] )
     // set mask image
     featureSelectionFilter->SetMaskImage( readerMovingMask->GetOutput() );
    }
+  // update and write selection points
+  featureSelectionFilter->Update();
+  // open file to write feature points
+  std::ofstream      FeatureFile; 
+  std::ostringstream FeatureFileName;
+  FeatureFileName       << controlfile("image/output","./Output") <<  "Feature.txt"      ;
+  FeatureFile.open      ( FeatureFileName.str().c_str()       );
+
+  typedef itk::Point<float, Dimension >      ITKFloatPointType;
+  typedef std::vector< ITKFloatPointType > STLFeaturePointType;
+  const STLFeaturePointType &stlfeaturepoints = 
+        featureSelectionFilter->GetOutput()->GetPoints()->CastToSTLConstContainer();
+  const int NumFeaturePoints = stlfeaturepoints.size(); 
+  // pass back to python as 1d array, reshape in numpy...
+  std::vector< NumpyArrayType > StlFeaturePointsPassToCython;
+
+  // write points
+  for (STLFeaturePointType::const_iterator ptIt = stlfeaturepoints.begin(); 
+                                           ptIt!= stlfeaturepoints.end()  ; ++ptIt) 
+    {
+    const ITKFloatPointType &featurepoint = *ptIt;
+    for (int icoord = 0; icoord < Dimension; icoord++)
+      StlFeaturePointsPassToCython.push_back(  featurepoint[icoord] );
+    FeatureFile << featurepoint[0]<<" "
+                << featurepoint[1]<<" "
+                << featurepoint[2]<< std::endl;
+    }
+  // close file
+  FeatureFile.close();
+  std::cout << "Wrote Feature Points..." << std::endl;
 
   //Set up the reader
   ReaderType::Pointer readerFixed = ReaderType::New();
@@ -211,7 +242,9 @@ int main( int argc, char * argv[] )
   blockMatchingFilter->SetFeaturePoints( featureSelectionFilter->GetOutput() );
 
   // parameters (all optional)
-  //blockMatchingFilter->SetNumberOfThreads( controlfile("exec/threads" , 1 )  );
+  blockMatchingFilter->SetNumberOfThreads( controlfile("exec/threads" , 
+       (int)  blockMatchingFilter->GetMultiThreader()->GetGlobalDefaultNumberOfThreads()
+                                         )  );
   //blockMatchingFilter->DebugOn( );
   blockMatchingFilter->SetBlockRadius( blockRadius );
   blockMatchingFilter->SetSearchRadius( searchRadius );
@@ -260,12 +293,6 @@ int main( int argc, char * argv[] )
   // OutputImageType::Pointer outputImage = colormapImageFilter->GetOutput();
 
   // Highlight the feature points identified in the output image
-  typedef PointSetType::PointsContainer::ConstIterator                                   PointIteratorType;
-  typedef BlockMatchingFilterType::DisplacementsType::PointDataContainer::ConstIterator  PointDataIteratorType;
-
-  PointIteratorType         pointItr = featureSelectionFilter->GetOutput()->GetPoints()->Begin();
-  PointIteratorType         pointEnd = featureSelectionFilter->GetOutput()->GetPoints()->End();
-  PointDataIteratorType     displItr = displacements->GetPointData()->Begin();
 
   // // define colors
   // OutputPixelType red;
@@ -310,39 +337,62 @@ int main( int argc, char * argv[] )
 
   // write txt files of block matching data
   //   source, target, displacements, similarity
-  std::ofstream      SourceFile,    TargetFile,    DisplacementFile,    SimilarityFile;
-  std::ostringstream SourceFileName,TargetFileName,DisplacementFileName,SimilarityFileName;
+  std::ofstream      DisplacementFile,    SimilarityFile;
+  std::ostringstream DisplacementFileName,SimilarityFileName;
 
-  SourceFileName       << controlfile("image/output","./Output") <<  "Source.txt"      ;
-  TargetFileName       << controlfile("image/output","./Output") <<  "Target.txt"      ;
   DisplacementFileName << controlfile("image/output","./Output") <<  "Displacement.txt";
   SimilarityFileName   << controlfile("image/output","./Output") <<  "Similarity.txt"  ;
 
-  SourceFile.open      ( SourceFileName.str().c_str()       );
-  TargetFile.open      ( TargetFileName.str().c_str()       );
-  DisplacementFile.open( DisplacementFileName.str().c_str() );
-  SimilarityFile.open  ( SimilarityFileName.str().c_str()   );
   // similarities iterator
-  typedef BlockMatchingFilterType::SimilaritiesType::PointDataContainer::ConstIterator   SimilaritiestIteratorType;
-  SimilaritiestIteratorType similItr = similarities->GetPointData()->Begin(); 
-  // reset iterator
-  pointItr = featureSelectionFilter->GetOutput()->GetPoints()->Begin();
-  displItr = displacements->GetPointData()->Begin();
-  while ( pointItr != pointEnd )
+  const std::vector< NumpyArrayType > &stlsimilarities = similarities->GetPointData()->CastToSTLConstContainer();
+  const int NumSimilarityPoints = stlsimilarities.size(); 
+
+  // displacement iterator
+  typedef itk::Vector<float, Dimension >            ITKFloatVectorType;
+  typedef std::vector< ITKFloatVectorType > STLDisplacementVectorType;
+  const STLDisplacementVectorType &stldisplacements =  displacements->GetPointData()->CastToSTLConstContainer();
+  const int NumDisplacementVec = stldisplacements.size(); 
+
+  // error check
+  if( NumDisplacementVec  != NumFeaturePoints 
+             or
+      NumFeaturePoints    != NumSimilarityPoints 
+             or
+      NumSimilarityPoints != NumDisplacementVec  
+    )
     {
-    SourceFile       << pointItr.Value()[0]<<" "<< pointItr.Value()[1]<<" "<< pointItr.Value()[2] << std::endl;
-    DisplacementFile << displItr.Value()[0]<<" "<< displItr.Value()[1]<<" "<< displItr.Value()[2] << std::endl;
-    TargetFile       << pointItr.Value()[0] + displItr.Value()[0] <<" "
-                     << pointItr.Value()[1] + displItr.Value()[1] <<" "
-                     << pointItr.Value()[2] + displItr.Value()[2] << std::endl;
-    SimilarityFile   << similItr.Value() << std::endl;
-    pointItr++;
-    displItr++;
-    similItr++;
+    std::cerr << "Number of points do not match !!! "           << std::endl;
+    std::cerr << "NumFeaturePoints:    " << NumFeaturePoints    << std::endl;
+    std::cerr << "NumSimilarityPoints: " << NumSimilarityPoints << std::endl;
+    std::cerr << "NumDisplacementVec:  " << NumDisplacementVec  << std::endl;
+    return EXIT_FAILURE;
     }
-  SourceFile.close();
-  TargetFile.close();
+
+  // open file and write similarity
+  SimilarityFile.open  ( SimilarityFileName.str().c_str()   );
+  for (std::vector< NumpyArrayType >::const_iterator similItr = stlsimilarities.begin(); 
+                                             similItr!= stlsimilarities.end()  ; ++similItr) 
+    {
+    SimilarityFile   << *similItr << std::endl;
+    }
   SimilarityFile.close(); 
+
+
+  // pass back to python as 1d array, reshape in numpy...
+  std::vector< NumpyArrayType > StlDisplacementsPassToCython;
+  // open file and write displacement
+  DisplacementFile.open( DisplacementFileName.str().c_str() );
+  for (STLDisplacementVectorType::const_iterator dplIt = stldisplacements.begin(); 
+                                                 dplIt!= stldisplacements.end()  ; ++dplIt) 
+    {
+    const ITKFloatVectorType &displacementvalue = *dplIt;
+    for (int icoord = 0; icoord < Dimension; icoord++)
+      StlDisplacementsPassToCython.push_back(  displacementvalue[icoord] );
+    DisplacementFile << displacementvalue[0]<<" "
+                     << displacementvalue[1]<<" "
+                     << displacementvalue[2]<< std::endl;
+    }
+  DisplacementFile.close();
 
   // //Set up the writer
   // typedef itk::ImageFileWriter< OutputImageType >  WriterType;
