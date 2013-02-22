@@ -217,7 +217,7 @@ int main( int argc, char * argv[] )
     }
   // close file
   FeatureFile.close();
-  std::cout << "Wrote Feature Points..." << std::endl;
+  std::cout << "Wrote "<< NumFeaturePoints << " Feature Points..." << std::endl;
 
   //Set up the reader
   ReaderType::Pointer readerFixed = ReaderType::New();
