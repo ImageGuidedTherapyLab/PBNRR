@@ -56,9 +56,15 @@ for uid in seriesUID:
    if(PrintAllKeysInDictionary): 
      for key in dictionary.GetKeys():
        print key, dictionary[key]
-   print dictionary['0008|103e']
+   WriteThisUID = False
+   # parse header for t1 t2 flair
+   for searchheader in ['T1','T2','FLAIR']:
+    if(dictionary['0008|103e'].upper().find(searchheader) != -1):
+      WriteThisUID = True
+      print "writing:", dictionary['0008|103e']
    # write
-   writer = itk.ImageFileWriter[ImageType].New()
-   writer.SetInput( reader.GetOutput() )
-   writer.SetFileName( "%s.mha" % uid );
-   writer.Update() 
+    if(WriteThisUID):
+      writer = itk.ImageFileWriter[ImageType].New()
+      writer.SetInput( reader.GetOutput() )
+      writer.SetFileName( "%s.mha" % uid );
+      writer.Update() 
