@@ -20,8 +20,11 @@
 #  Example on the use of Dicom Reader 
 #
 
-import itk
 import sys
+# python itk bindings
+import itk
+# used scipy to write matlab files
+import scipy.io as scipyio
 
 if len(sys.argv) < 1:
     print('Usage: ' + sys.argv[0] + ' DicomDirectory')
@@ -56,15 +59,22 @@ for uid in seriesUID:
    if(PrintAllKeysInDictionary): 
      for key in dictionary.GetKeys():
        print key, dictionary[key]
+   # parse header SeriesDescription for t1 t2 flair
    WriteThisUID = False
-   # parse header for t1 t2 flair
+   SeriesDescription = dictionary['0008|103e']
    for searchheader in ['T1','T2','FLAIR']:
-    if(dictionary['0008|103e'].upper().find(searchheader) != -1):
+    if(SeriesDescription.upper().find(searchheader) != -1):
       WriteThisUID = True
-      print "writing:", dictionary['0008|103e']
+      print "writing:", SeriesDescription
    # write
-    if(WriteThisUID):
-      writer = itk.ImageFileWriter[ImageType].New()
-      writer.SetInput( reader.GetOutput() )
-      writer.SetFileName( "%s.mha" % uid );
-      writer.Update() 
+   if(WriteThisUID):
+     writer = itk.ImageFileWriter[ImageType].New()
+     writer.SetInput( reader.GetOutput() )
+     #TODO set vtk array name to the series description for ID
+     #vtkvectorarray.SetName(SeriesDescription)
+     writer.SetFileName( "%s.mha" % uid );
+     writer.Update() 
+     #save as MATLAB :)
+     scipyio.savemat("%s.mat" % (uid), {'HeaderInfo':dictionary.GetKeys()} )
+     #TODO get pixel buffer and save as MATLAB :)
+     #scipyio.savemat("%s.mat" % (uid), {'ImageData':Data,'HeaderInfo':dictionary} )
