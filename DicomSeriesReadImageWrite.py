@@ -50,6 +50,9 @@ for uid in seriesUID:
    reader.SetImageIO( dicomIO )
    reader.SetFileNames( fileNames )
    reader.Update( )
+   # get dictionary info
+   dictionary = dicomIO.GetMetaDataDictionary()
+   print dictionary.Get("0008|1030")
    # write
    writer = itk.ImageFileWriter[ImageType].New()
    writer.SetInput( reader.GetOutput() )
