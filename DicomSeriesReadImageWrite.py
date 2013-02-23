@@ -17,57 +17,41 @@
 #==========================================================================*/
 
 #
-#  Example on the use of ImageFileReader to reading a single slice (it will read
-#  DICOM or other format), rescale the intensities and save it in a different
-#  file format.
+#  Example on the use of Dicom Reader 
 #
 
 import itk
 import sys
 
-## if len(sys.argv) < 3:
-##     print('Usage: ' + sys.argv[0] + ' inputFile.dcm outputFile.png')
-##     sys.exit(1)
+if len(sys.argv) < 1:
+    print('Usage: ' + sys.argv[0] + ' DicomDirectory')
+    sys.exit(1)
 
 #
-# Reads a 2D image in with signed short (16bits/pixel) pixel type
-# and save it as unsigned char (8bits/pixel) pixel type
+# Reads a 3D image in with signed short (16bits/pixel) pixel type
+# and save it
 #
-InputImageType  = itk.Image.SS2
-OutputImageType = itk.Image.UC2
+ImageType  = itk.Image.SS3
 
 nameGenerator = itk.GDCMSeriesFileNames.New()
 nameGenerator.SetUseSeriesDetails( True ) 
 nameGenerator.AddSeriesRestriction("0008|0021") 
 
-InputDir ='InsightJournalInputsCases'
-nameGenerator.SetDirectory( InputDir  ) 
+nameGenerator.SetDirectory( sys.argv[1]) 
 seriesUID = nameGenerator.GetSeriesUIDs() 
 
 for uid in seriesUID:
-   print uid
    # get file names
    fileNames = nameGenerator.GetFileNames( uid ) 
+   print "reading:", uid
    # read
-   reader = itk.ImageSeriesReader[InputImageType].New()
+   reader = itk.ImageSeriesReader[ImageType].New()
    dicomIO = itk.GDCMImageIO.New()
    reader.SetImageIO( dicomIO )
    reader.SetFileNames( fileNames )
    reader.Update( )
    # write
-   writer = itk.ImageFileWriter[OutputImageType].New()
+   writer = itk.ImageFileWriter[ImageType].New()
    writer.SetInput( reader.GetOutput() )
    writer.SetFileName( "%s.mha" % uid );
    writer.Update() 
-
-## filter = itk.RescaleIntensityImageFilter[InputImageType, OutputImageType].New()
-## filter.SetOutputMinimum( 0 )
-## filter.SetOutputMaximum(255)
-## 
-## filter.SetInput( reader.GetOutput() )
-## writer.SetInput( filter.GetOutput() )
-## 
-## reader.SetFileName( sys.argv[1] )
-## writer.SetFileName( sys.argv[2] )
-## 
-## writer.Update()
