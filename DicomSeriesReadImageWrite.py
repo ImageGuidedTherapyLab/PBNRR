@@ -52,7 +52,11 @@ for uid in seriesUID:
    reader.Update( )
    # get dictionary info
    dictionary = dicomIO.GetMetaDataDictionary()
-   print dictionary.Get("0008|1030")
+   PrintAllKeysInDictionary = False
+   if(PrintAllKeysInDictionary): 
+     for key in dictionary.GetKeys():
+       print key, dictionary[key]
+   print dictionary['0008|103e']
    # write
    writer = itk.ImageFileWriter[ImageType].New()
    writer.SetInput( reader.GetOutput() )
