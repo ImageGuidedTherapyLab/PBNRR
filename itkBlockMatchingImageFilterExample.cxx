@@ -165,6 +165,7 @@ int main( int argc, char * argv[] )
   featureSelectionFilter->SetSelectFraction( selectFraction );
   featureSelectionFilter->SetBlockRadius( blockRadius );
   featureSelectionFilter->ComputeStructureTensorsOff();
+  featureSelectionFilter->SetNonConnectivity((unsigned int)controlfile("featureselection/nonconnectivity",0));
 
   // check if user input mask image
   std::string MovingMaskFileName( controlfile("image/movingmask","MovingMaskNotFound") ) ;
