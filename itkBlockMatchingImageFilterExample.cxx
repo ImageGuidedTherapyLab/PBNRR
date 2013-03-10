@@ -29,7 +29,7 @@
 #include "itkMultiThreader.h"
 #include "itkRegionOfInterestImageFilter.h"
 #include "itkMaskFeaturePointSelectionFilter.h"
-#include "itkBlockMatchingVaryImageFilter.h"
+#include "itkBlockMatchingImageFilter.h"
 #include "itkScalarToRGBColormapImageFilter.h"
 #include "itkTranslationTransform.h"
 #include "itkResampleImageFilter.h"
@@ -75,19 +75,23 @@ int main( int argc, char * argv[] )
 
   // set anisotropic match and search windows
   // ini file should of the form
+  // [featureselection]
+  // connectivityradius  = '7 7 6'
   // [blockmatch]
-  // blockradius  = '2 2 3'
-  // searchradius = '5 5 7'
+  // blockradius  = '3 3 2'
+  // searchradius = '5 5 4'
   // 
   // Parameters used for FS and BM
   typedef InputImageType::SizeType RadiusType;
-  RadiusType blockRadius, searchRadius;
+  RadiusType blockRadius, searchRadius, connectivityRadius;
   for (int icoord = 0; icoord < Dimension; icoord++)
    {
     blockRadius.SetElement(  icoord, 
                              controlfile("blockmatch/blockradius" , 3, icoord) );
     searchRadius.SetElement( icoord,
                              controlfile("blockmatch/searchradius", 7, icoord) );
+    connectivityRadius.SetElement(  icoord, 
+                             controlfile("featureselection/connectivityradius" , 1, icoord) );
    }
 
 
@@ -129,7 +133,8 @@ int main( int argc, char * argv[] )
   regionOfInterestFilter->SetRegionOfInterest( regionOfInterest );
   regionOfInterestFilter->Update();
 
-  regionOfInterestFilter->DebugOn();
+  //regionOfInterestFilter->DebugOn();
+  std::cout << "Region Of Interest: " << regionOfInterestFilter << std::endl;
   if ( regionOfInterestFilter->GetDebug() )
    {
      std::ostringstream ROIFileName;
@@ -164,6 +169,7 @@ int main( int argc, char * argv[] )
   featureSelectionFilter->SetInput( regionOfInterestFilter->GetOutput() );
   featureSelectionFilter->SetSelectFraction( selectFraction );
   featureSelectionFilter->SetBlockRadius( blockRadius );
+  featureSelectionFilter->SetConnectivityRadius( connectivityRadius );
   featureSelectionFilter->ComputeStructureTensorsOff();
   featureSelectionFilter->SetNonConnectivity((unsigned int)controlfile("featureselection/nonconnectivity",0));
 
@@ -190,6 +196,7 @@ int main( int argc, char * argv[] )
     featureSelectionFilter->SetMaskImage( readerMovingMask->GetOutput() );
    }
   // update and write selection points
+  std::cout << "Feature Selection: " << featureSelectionFilter << std::endl;
   featureSelectionFilter->Update();
   // open file to write feature points
   std::ofstream      FeatureFile; 
@@ -234,7 +241,7 @@ int main( int argc, char * argv[] )
     }
 
 
-  typedef itk::BlockMatchingVaryImageFilter< InputImageType >  BlockMatchingFilterType;
+  typedef itk::BlockMatchingImageFilter< InputImageType >  BlockMatchingFilterType;
   BlockMatchingFilterType::Pointer blockMatchingFilter = BlockMatchingFilterType::New();
 
   // inputs (all required)
