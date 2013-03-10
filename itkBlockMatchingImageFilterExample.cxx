@@ -109,15 +109,16 @@ int main( int argc, char * argv[] )
     std::cerr << "Error in reading the input image: " << e << std::endl;
     return EXIT_FAILURE;
     }
+  InputImageType::Pointer MovingImage = readerMoving->GetOutput() ;
 
   // Reduce region of interest by SEARCH_RADIUS
   typedef itk::RegionOfInterestImageFilter< InputImageType, InputImageType >  RegionOfInterestFilterType;
 
   RegionOfInterestFilterType::Pointer regionOfInterestFilter = RegionOfInterestFilterType::New();
 
-  regionOfInterestFilter->SetInput( readerMoving->GetOutput() );
+  regionOfInterestFilter->SetInput( MovingImage );
 
-  RegionOfInterestFilterType::RegionType regionOfInterest = readerMoving->GetOutput()->GetLargestPossibleRegion();
+  RegionOfInterestFilterType::RegionType regionOfInterest = MovingImage->GetLargestPossibleRegion();
 
   // set the starting point of the ROI
   RegionOfInterestFilterType::RegionType::IndexType regionOfInterestIndex = regionOfInterest.GetIndex();
@@ -199,10 +200,10 @@ int main( int argc, char * argv[] )
   std::cout << "Feature Selection: " << featureSelectionFilter << std::endl;
   featureSelectionFilter->Update();
   // open file to write feature points
-  std::ofstream      FeatureFile; 
-  std::ostringstream FeatureFileName;
-  FeatureFileName       << controlfile("image/output","./Output") <<  "Feature.txt"      ;
-  FeatureFile.open      ( FeatureFileName.str().c_str()       );
+  std::ofstream      PhysicalFeatureFile; 
+  std::ostringstream PhysicalFeatureFileName;
+  PhysicalFeatureFileName << controlfile("image/output","./Output") <<  "PhysicalFeature.txt" ;
+  PhysicalFeatureFile.open( PhysicalFeatureFileName.str().c_str()  );
 
   typedef itk::Point<float, Dimension >      ITKFloatPointType;
   typedef std::vector< ITKFloatPointType > STLFeaturePointType;
@@ -219,12 +220,14 @@ int main( int argc, char * argv[] )
     const ITKFloatPointType &featurepoint = *ptIt;
     for (int icoord = 0; icoord < Dimension; icoord++)
       StlFeaturePointsPassToCython.push_back(  featurepoint[icoord] );
-    FeatureFile << featurepoint[0]<<" "
-                << featurepoint[1]<<" "
-                << featurepoint[2]<< std::endl;
+    PhysicalFeatureFile << featurepoint[0]<<" "
+                        << featurepoint[1]<<" "
+                        << featurepoint[2]<< std::endl;
     }
   // close file
-  FeatureFile.close();
+  PhysicalFeatureFile.close();
+
+  // echo output points
   std::cout << "Wrote "<< NumFeaturePoints << " Feature Points..." << std::endl;
 
   //Set up the reader
@@ -245,8 +248,9 @@ int main( int argc, char * argv[] )
   BlockMatchingFilterType::Pointer blockMatchingFilter = BlockMatchingFilterType::New();
 
   // inputs (all required)
-  blockMatchingFilter->SetFixedImage(  readerFixed->GetOutput() );
-  blockMatchingFilter->SetMovingImage( readerMoving->GetOutput() );
+  InputImageType::Pointer FixedImage = readerFixed->GetOutput() ;
+  blockMatchingFilter->SetFixedImage(  FixedImage );
+  blockMatchingFilter->SetMovingImage( MovingImage );
   blockMatchingFilter->SetFeaturePoints( featureSelectionFilter->GetOutput() );
 
   // parameters (all optional)
@@ -281,67 +285,6 @@ int main( int argc, char * argv[] )
     std::cerr << "GetSimilarities() failed." << std::endl;
     return EXIT_FAILURE;
     }
-
-  // // create RGB copy of input image
-  // typedef itk::ScalarToRGBColormapImageFilter< InputImageType, OutputImageType >  RGBFilterType;
-  // RGBFilterType::Pointer colormapImageFilter = RGBFilterType::New();
-
-  // colormapImageFilter->SetColormap( RGBFilterType::Grey );
-  // colormapImageFilter->SetInput( readerMoving->GetOutput() );
-  // try
-  //   {
-  //   colormapImageFilter->Update();
-  //   }
-  // catch ( itk::ExceptionObject &err )
-  //   {
-  //   std::cerr << err << std::endl;
-  //   return EXIT_FAILURE;
-  //   }
-
-  // OutputImageType::Pointer outputImage = colormapImageFilter->GetOutput();
-
-  // Highlight the feature points identified in the output image
-
-  // // define colors
-  // OutputPixelType red;
-  // red.SetRed( 255 );
-  // red.SetGreen( 0 );
-  // red.SetBlue( 0 );
-
-  // OutputPixelType green;
-  // green.SetRed( 0 );
-  // green.SetGreen( 255 );
-  // green.SetBlue( 0 );
-
-  // OutputPixelType blue;
-  // blue.SetRed( 0 );
-  // blue.SetGreen( 0 );
-  // blue.SetBlue( 255 );
-
-  // OutputImageType::IndexType index;
-  // while ( pointItr != pointEnd )
-  //   {
-  //   if ( outputImage->TransformPhysicalPointToIndex(pointItr.Value(), index) )
-  //     {
-  //     OutputImageType::IndexType displ;
-  //     outputImage->TransformPhysicalPointToIndex( pointItr.Value() + displItr.Value(), displ );
-
-  //     // draw line between old and new location of a point in blue
-  //     itk::LineIterator< OutputImageType > lineIter( outputImage, index, displ );
-  //     for ( lineIter.GoToBegin(); !lineIter.IsAtEnd(); ++lineIter )
-  //       {
-  //       lineIter.Set( blue );
-  //       }
-
-  //     // mark old location of a point in green
-  //     outputImage->SetPixel(index, green);
-
-  //     // mark new location of a point in red
-  //     outputImage->SetPixel(displ, red);
-  //     }
-  //   pointItr++;
-  //   displItr++;
-  //   }
 
   // write txt files of block matching data
   //   source, target, displacements, similarity
@@ -418,5 +361,47 @@ int main( int argc, char * argv[] )
   //   return EXIT_FAILURE;
   //   }
 
+  // typedefs
+  typedef PointSetType::PointsContainer::ConstIterator                                   PointIteratorType;
+  typedef BlockMatchingFilterType::DisplacementsType::PointDataContainer::ConstIterator  PointDataIteratorType;
+
+  // write out block match indicies
+  std::ofstream      FeatureIndexFile    ,FixedIndexFile; 
+  std::ostringstream FeatureIndexFileName,FixedIndexFileName;
+  FeatureIndexFileName << controlfile("image/output","./Output") <<  "FeatureIndex.txt" ;
+  FixedIndexFileName   << controlfile("image/output","./Output") <<  "FixedIndex.txt" ;
+
+  PointIteratorType pointItr = featureSelectionFilter->GetOutput()->GetPoints()->Begin();
+  PointIteratorType pointEnd = featureSelectionFilter->GetOutput()->GetPoints()->End();
+  PointDataIteratorType displItr = displacements->GetPointData()->Begin();
+  // open
+  FeatureIndexFile.open(    FeatureIndexFileName.str().c_str()     );
+  FixedIndexFile.open(        FixedIndexFileName.str().c_str()     );
+  InputImageType::IndexType featureIndex;
+  while ( pointItr != pointEnd )
+    {
+    if ( MovingImage->TransformPhysicalPointToIndex(pointItr.Value(), featureIndex) )
+      {
+      InputImageType::IndexType fixedIndex;
+      FixedImage->TransformPhysicalPointToIndex( pointItr.Value() + displItr.Value(), fixedIndex );
+
+      // write feature location
+      FeatureIndexFile  << featureIndex[0]<<" "
+                        << featureIndex[1]<<" "
+                        << featureIndex[2]<< std::endl;
+
+      // write fixed location
+      FixedIndexFile    << fixedIndex[0]<<" "
+                        << fixedIndex[1]<<" "
+                        << fixedIndex[2]<< std::endl;
+      } 
+    pointItr++;
+    displItr++;
+    }
+  // close file
+  FeatureIndexFile.close();
+  FixedIndexFile.close();
+
   return EXIT_SUCCESS;
 }
+
