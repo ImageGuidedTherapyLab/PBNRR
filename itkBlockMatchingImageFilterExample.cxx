@@ -65,7 +65,7 @@ int main( int argc, char * argv[] )
 
   const double selectFraction = controlfile("featureselection/selectionfraction",0.01);
 
-  typedef unsigned char                  InputPixelType;
+  typedef unsigned short                 InputPixelType;
   typedef double                         NumpyArrayType;
   static const unsigned int Dimension = 3;
   typedef itk::Image< InputPixelType,  Dimension >  InputImageType;
@@ -170,8 +170,8 @@ int main( int argc, char * argv[] )
   typedef itk::MaskFeaturePointSelectionFilter< InputImageType >  FeatureSelectionFilterType;
   typedef FeatureSelectionFilterType::FeaturePointsType           PointSetType;
 
-  typedef FeatureSelectionFilterType::PointType       PointType;
-  typedef FeatureSelectionFilterType::InputImageType  ImageType;
+  typedef FeatureSelectionFilterType::PointType       FeatureSelectionPointType;
+  typedef FeatureSelectionFilterType::InputImageType  FeatureSelectionImageType;
 
   // Feature Selection
   FeatureSelectionFilterType::Pointer featureSelectionFilter = FeatureSelectionFilterType::New();
@@ -395,17 +395,18 @@ int main( int argc, char * argv[] )
   FeatureIndexFile.close();
   FixedIndexFile.close();
 
-  typedef itk::ImageDuplicator< InputImageType > DuplicatorType;
-  DuplicatorType::Pointer duplicator = DuplicatorType::New();
-  duplicator->SetInputImage(MovingImage);
-  duplicator->Update();
-  ImageType::Pointer clonedImage = duplicator->GetModifiableOutput();
+  // typedef itk::ImageDuplicator< InputImageType > DuplicatorType;
+  // DuplicatorType::Pointer duplicator = DuplicatorType::New();
+  // duplicator->SetInputImage(MovingImage);
+  // duplicator->Update();
+  // InputImageType::Pointer outputImage = duplicator->GetModifiableOutput();
 
   // create RGB copy of input image
   typedef itk::RGBPixel<InputPixelType>  OutputPixelType;
   typedef itk::Image< OutputPixelType, Dimension >  OutputImageType;
   typedef itk::ScalarToRGBColormapImageFilter< InputImageType, OutputImageType > RGBFilterType;
   RGBFilterType::Pointer colormapImageFilter = RGBFilterType::New();
+  //colormapImageFilter->UseInputImageExtremaForScalingOff();
 
   colormapImageFilter->SetColormap( RGBFilterType::Grey );
   colormapImageFilter->SetInput( MovingImage  );
@@ -418,32 +419,32 @@ int main( int argc, char * argv[] )
     std::cerr << err << std::endl;
     return EXIT_FAILURE;
     }
+  OutputImageType::Pointer outputImage = colormapImageFilter->GetOutput();
 
   typedef itk::RGBPixel<InputPixelType>  OutputPixelType;
   typedef itk::Image< OutputPixelType, Dimension >  OutputImageType;
-  OutputImageType::Pointer outputImage = colormapImageFilter->GetOutput();
-  // reset to zero
-  OutputPixelType ZeroValue;
-  ZeroValue.SetRed(   0 );
-  ZeroValue.SetGreen( 0 );
-  ZeroValue.SetBlue(  0 );
-  outputImage->FillBuffer( ZeroValue );
+  // // reset to zero
+  // OutputPixelType ZeroValue;
+  // ZeroValue.SetRed(   0 );
+  // ZeroValue.SetGreen( 0 );
+  // ZeroValue.SetBlue(  0 );
+  // outputImage->FillBuffer( ZeroValue );
 
   // Define colors to highlight the feature points identified in the output image
   OutputPixelType red;
-  red.SetRed( 255 );
+  red.SetRed( 65535 );
   red.SetGreen( 0 );
   red.SetBlue( 0 );
 
   OutputPixelType green;
   green.SetRed( 0 );
-  green.SetGreen( 255 );
+  green.SetGreen( 65535 );
   green.SetBlue( 0 );
 
   OutputPixelType blue;
   blue.SetRed( 0 );
   blue.SetGreen( 0 );
-  blue.SetBlue( 255 );
+  blue.SetBlue( 65535 );
 
   // reset the iterators
   pointItr = featureSelectionFilter->GetOutput()->GetPoints()->Begin();
@@ -474,6 +475,7 @@ int main( int argc, char * argv[] )
     pointItr++;
     displItr++;
     }
+  
 
   //Set up the writer
   typedef itk::ImageFileWriter< OutputImageType >  WriterType;
