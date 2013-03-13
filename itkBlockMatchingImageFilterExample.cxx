@@ -65,7 +65,7 @@ int main( int argc, char * argv[] )
 
   const double selectFraction = controlfile("featureselection/selectionfraction",0.01);
 
-  typedef unsigned short                 InputPixelType;
+  typedef float                          InputPixelType;
   typedef double                         NumpyArrayType;
   static const unsigned int Dimension = 3;
   typedef itk::Image< InputPixelType,  Dimension >  InputImageType;
@@ -402,7 +402,9 @@ int main( int argc, char * argv[] )
   // InputImageType::Pointer outputImage = duplicator->GetModifiableOutput();
 
   // create RGB copy of input image
-  typedef itk::RGBPixel<InputPixelType>  OutputPixelType;
+  // TODO: Map Scalars Must be unchecked in paraview visualize the RGB image mapped from unsigned char
+  // http://paraview.org/OnlineHelpCurrent/Display.html
+  typedef itk::RGBPixel<unsigned char>  OutputPixelType;
   typedef itk::Image< OutputPixelType, Dimension >  OutputImageType;
   typedef itk::ScalarToRGBColormapImageFilter< InputImageType, OutputImageType > RGBFilterType;
   RGBFilterType::Pointer colormapImageFilter = RGBFilterType::New();
@@ -421,8 +423,6 @@ int main( int argc, char * argv[] )
     }
   OutputImageType::Pointer outputImage = colormapImageFilter->GetOutput();
 
-  typedef itk::RGBPixel<InputPixelType>  OutputPixelType;
-  typedef itk::Image< OutputPixelType, Dimension >  OutputImageType;
   // // reset to zero
   // OutputPixelType ZeroValue;
   // ZeroValue.SetRed(   0 );
@@ -431,20 +431,22 @@ int main( int argc, char * argv[] )
   // outputImage->FillBuffer( ZeroValue );
 
   // Define colors to highlight the feature points identified in the output image
+  // TODO: Map Scalars Must be unchecked in paraview visualize the RGB image mapped from unsigned char
+  // http://paraview.org/OnlineHelpCurrent/Display.html
   OutputPixelType red;
-  red.SetRed( 65535 );
+  red.SetRed( 255 );
   red.SetGreen( 0 );
   red.SetBlue( 0 );
 
   OutputPixelType green;
   green.SetRed( 0 );
-  green.SetGreen( 65535 );
+  green.SetGreen( 255 );
   green.SetBlue( 0 );
 
   OutputPixelType blue;
   blue.SetRed( 0 );
   blue.SetGreen( 0 );
-  blue.SetBlue( 65535 );
+  blue.SetBlue( 255 );
 
   // reset the iterators
   pointItr = featureSelectionFilter->GetOutput()->GetPoints()->Begin();
@@ -459,8 +461,7 @@ int main( int argc, char * argv[] )
       outputImage->TransformPhysicalPointToIndex( pointItr.Value() + displItr.Value(), displ );
 
       // draw line between old and new location of a point in blue
-      itk::LineIterator< OutputImageType > lineIter( outputImage, index, displ
-);
+      itk::LineIterator< OutputImageType > lineIter( outputImage, index, displ);
       for ( lineIter.GoToBegin(); !lineIter.IsAtEnd(); ++lineIter )
         {
         lineIter.Set( blue );
@@ -483,7 +484,7 @@ int main( int argc, char * argv[] )
 
   std::ofstream      BlockMatchFile;
   std::ostringstream BlockMatchFileName;
-  BlockMatchFileName << controlfile("image/output","./Output")<< OutputFileTag.str() << "BlockMatchDebug.mha" ;
+  BlockMatchFileName << controlfile("image/output","./Output")<< OutputFileTag.str() << "BlockMatchDebug.vtk" ;
   writer->SetFileName( BlockMatchFileName.str().c_str() );
   writer->SetInput( outputImage );
   try
