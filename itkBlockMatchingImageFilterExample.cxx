@@ -412,7 +412,6 @@ int main( int argc, char * argv[] )
 
   colormapImageFilter->SetColormap( RGBFilterType::Grey );
   colormapImageFilter->SetInput( MovingImage  );
-  std::cout << "Write Block Match Pairs as RGB: " << colormapImageFilter << std::endl;
   try
     {
     colormapImageFilter->Update();
@@ -422,6 +421,8 @@ int main( int argc, char * argv[] )
     std::cerr << err << std::endl;
     return EXIT_FAILURE;
     }
+  // write after update to get values used
+  std::cout << "Converting Block Match Pairs to RGB: " << colormapImageFilter << std::endl;
   OutputImageType::Pointer outputImage = colormapImageFilter->GetOutput();
 
   // // reset to zero
@@ -488,6 +489,8 @@ int main( int argc, char * argv[] )
   BlockMatchFileName << controlfile("image/output","./Output")<< OutputFileTag.str() << "BlockMatchDebug.mha" ;
   writer->SetFileName( BlockMatchFileName.str().c_str() );
   writer->SetInput( outputImage );
+  // write after update to get values used
+  std::cout << "writing: " << writer << std::endl;
   try
     {
     writer->Update();
