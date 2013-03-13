@@ -412,6 +412,7 @@ int main( int argc, char * argv[] )
 
   colormapImageFilter->SetColormap( RGBFilterType::Grey );
   colormapImageFilter->SetInput( MovingImage  );
+  std::cout << "Write Block Match Pairs as RGB: " << colormapImageFilter << std::endl;
   try
     {
     colormapImageFilter->Update();
@@ -484,7 +485,7 @@ int main( int argc, char * argv[] )
 
   std::ofstream      BlockMatchFile;
   std::ostringstream BlockMatchFileName;
-  BlockMatchFileName << controlfile("image/output","./Output")<< OutputFileTag.str() << "BlockMatchDebug.vtk" ;
+  BlockMatchFileName << controlfile("image/output","./Output")<< OutputFileTag.str() << "BlockMatchDebug.mha" ;
   writer->SetFileName( BlockMatchFileName.str().c_str() );
   writer->SetInput( outputImage );
   try
