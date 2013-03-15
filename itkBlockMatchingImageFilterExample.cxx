@@ -257,8 +257,8 @@ int main( int argc, char * argv[] )
   BlockMatchingFilterType::Pointer blockMatchingFilter = BlockMatchingFilterType::New();
 
   // inputs (all required)
-  InputImageType::Pointer FixedImage = readerFixed->GetOutput() ;
-  blockMatchingFilter->SetFixedImage(  FixedImage );
+  InputImageType::Pointer Fixed_Image = readerFixed->GetOutput() ;
+  blockMatchingFilter->SetFixedImage(  Fixed_Image );
   blockMatchingFilter->SetMovingImage( MovingImage );
   blockMatchingFilter->SetFeaturePoints( featureSelectionFilter->GetOutput() );
 
@@ -361,8 +361,8 @@ int main( int argc, char * argv[] )
   // write out block match indicies
   std::ofstream      FeatureIndexFile    ,FixedIndexFile; 
   std::ostringstream FeatureIndexFileName,FixedIndexFileName;
-  FeatureIndexFileName << controlfile("image/output","./Output") <<  "FeatureIndex.txt" ;
-  FixedIndexFileName   << controlfile("image/output","./Output") <<  "FixedIndex.txt" ;
+  FeatureIndexFileName << controlfile("image/output","./Output") << "MovingTargetIndex.txt" ;
+  FixedIndexFileName   << controlfile("image/output","./Output") << "Fixed_SourceIndex.txt" ;
 
   PointIteratorType pointItr = featureSelectionFilter->GetOutput()->GetPoints()->Begin();
   PointIteratorType pointEnd = featureSelectionFilter->GetOutput()->GetPoints()->End();
@@ -376,7 +376,7 @@ int main( int argc, char * argv[] )
     if ( MovingImage->TransformPhysicalPointToIndex(pointItr.Value(), featureIndex) )
       {
       InputImageType::IndexType fixedIndex;
-      FixedImage->TransformPhysicalPointToIndex( pointItr.Value() + displItr.Value(), fixedIndex );
+      Fixed_Image->TransformPhysicalPointToIndex( pointItr.Value() + displItr.Value(), fixedIndex );
 
       // write feature location
       FeatureIndexFile  << featureIndex[0]<<" "
@@ -407,14 +407,21 @@ int main( int argc, char * argv[] )
   typedef itk::RGBPixel<unsigned char>  OutputPixelType;
   typedef itk::Image< OutputPixelType, Dimension >  OutputImageType;
   typedef itk::ScalarToRGBColormapImageFilter< InputImageType, OutputImageType > RGBFilterType;
-  RGBFilterType::Pointer colormapImageFilter = RGBFilterType::New();
+  RGBFilterType::Pointer colormapMovingImageFilter = RGBFilterType::New();
+  RGBFilterType::Pointer colormapFixed_ImageFilter = RGBFilterType::New();
   //colormapImageFilter->UseInputImageExtremaForScalingOff();
 
-  colormapImageFilter->SetColormap( RGBFilterType::Grey );
-  colormapImageFilter->SetInput( MovingImage  );
+  // color maps
+  colormapMovingImageFilter->SetColormap( RGBFilterType::Grey );
+  colormapFixed_ImageFilter->SetColormap( RGBFilterType::Grey );
+
+  // inputs
+  colormapMovingImageFilter->SetInput( MovingImage  );
+  colormapFixed_ImageFilter->SetInput( Fixed_Image  );
   try
     {
-    colormapImageFilter->Update();
+    colormapMovingImageFilter->Update( );
+    colormapFixed_ImageFilter->Update( );
     }
   catch ( itk::ExceptionObject &err )
     {
@@ -422,8 +429,10 @@ int main( int argc, char * argv[] )
     return EXIT_FAILURE;
     }
   // write after update to get values used
-  std::cout << "Converting Block Match Pairs to RGB: " << colormapImageFilter << std::endl;
-  OutputImageType::Pointer outputImage = colormapImageFilter->GetOutput();
+  std::cout << "Converted Block Match Pairs to RGB- Moving: " << colormapMovingImageFilter<< std::endl;
+  std::cout << "Converted Block Match Pairs to RGB- Fixed: "  << colormapFixed_ImageFilter << std::endl;
+  OutputImageType::Pointer outputMovingImage = colormapMovingImageFilter->GetOutput();
+  OutputImageType::Pointer outputFixed_Image = colormapFixed_ImageFilter->GetOutput();
 
   // // reset to zero
   // OutputPixelType ZeroValue;
@@ -454,26 +463,34 @@ int main( int argc, char * argv[] )
   pointItr = featureSelectionFilter->GetOutput()->GetPoints()->Begin();
   displItr = displacements->GetPointData()->Begin();
 
-  OutputImageType::IndexType index;
+  OutputImageType::IndexType MovingIndex, Fixed_Index;
   while ( pointItr != pointEnd )
     {
-    if ( outputImage->TransformPhysicalPointToIndex(pointItr.Value(), index) )
+    if ( outputMovingImage->TransformPhysicalPointToIndex(pointItr.Value(), MovingIndex) )
       {
-      OutputImageType::IndexType displ;
-      outputImage->TransformPhysicalPointToIndex( pointItr.Value() + displItr.Value(), displ );
+      outputFixed_Image->TransformPhysicalPointToIndex(pointItr.Value(), Fixed_Index) ;
+
+      OutputImageType::IndexType MovingDispl, Fixed_Displ;
+      outputMovingImage->TransformPhysicalPointToIndex( pointItr.Value() + displItr.Value(), MovingDispl );
+      outputFixed_Image->TransformPhysicalPointToIndex( pointItr.Value() + displItr.Value(), Fixed_Displ );
 
       // draw line between old and new location of a point in blue
-      itk::LineIterator< OutputImageType > lineIter( outputImage, index, displ);
-      for ( lineIter.GoToBegin(); !lineIter.IsAtEnd(); ++lineIter )
+      itk::LineIterator< OutputImageType > lineMovingIter( outputMovingImage, MovingIndex, MovingDispl);
+      for ( lineMovingIter.GoToBegin(); !lineMovingIter.IsAtEnd(); ++lineMovingIter )
         {
-        lineIter.Set( blue );
+        lineMovingIter.Set( blue );
+        }
+      itk::LineIterator< OutputImageType > lineFixed_Iter( outputFixed_Image, Fixed_Index, Fixed_Displ);
+      for ( lineFixed_Iter.GoToBegin(); !lineFixed_Iter.IsAtEnd(); ++lineFixed_Iter )
+        {
+        lineFixed_Iter.Set( blue );
         }
 
       // mark old location of a point in green
-      outputImage->SetPixel(index, green);
+      outputMovingImage->SetPixel(MovingIndex, green);
 
       // mark new location of a point in red
-      outputImage->SetPixel(displ, red);
+      outputFixed_Image->SetPixel(Fixed_Displ, red);
       }
     pointItr++;
     displItr++;
@@ -482,18 +499,22 @@ int main( int argc, char * argv[] )
 
   //Set up the writer
   typedef itk::ImageFileWriter< OutputImageType >  WriterType;
-  WriterType::Pointer writer = WriterType::New();
+  WriterType::Pointer MovingWriter = WriterType::New();
+  WriterType::Pointer Fixed_Writer = WriterType::New();
 
-  std::ofstream      BlockMatchFile;
-  std::ostringstream BlockMatchFileName;
-  BlockMatchFileName << controlfile("image/output","./Output")<< OutputFileTag.str() << "BlockMatchDebug.mha" ;
-  writer->SetFileName( BlockMatchFileName.str().c_str() );
-  writer->SetInput( outputImage );
+  std::ofstream      MovingBlockMatchFile,Fixed_BlockMatchFile;
+  std::ostringstream MovingBlockMatchFileName,Fixed_BlockMatchFileName;
+  MovingBlockMatchFileName << controlfile("image/output","./Output")<<"MovingTarget" <<  OutputFileTag.str() << ".mha" ;
+  Fixed_BlockMatchFileName << controlfile("image/output","./Output")<<"Fixed_Source" <<  OutputFileTag.str() << ".mha" ;
+  MovingWriter->SetFileName( MovingBlockMatchFileName.str().c_str() );
+  Fixed_Writer->SetFileName( Fixed_BlockMatchFileName.str().c_str() );
+  MovingWriter->SetInput( outputMovingImage );
+  Fixed_Writer->SetInput( outputFixed_Image );
   // write after update to get values used
-  std::cout << "writing: " << writer << std::endl;
   try
     {
-    writer->Update();
+    MovingWriter->Update();
+    Fixed_Writer->Update();
     }
   catch( itk::ExceptionObject & e )
     {
