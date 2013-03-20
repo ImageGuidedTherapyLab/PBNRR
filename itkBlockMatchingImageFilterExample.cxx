@@ -107,27 +107,29 @@ int main( int argc, char * argv[] )
   typedef itk::ImageFileReader< InputImageType >  ReaderType;
 
   // read in moving image first and identify the feature points
-  ReaderType::Pointer readerMoving = ReaderType::New();
-  readerMoving->SetFileName( controlfile("image/moving","./MovingNotFound") );
+  ReaderType::Pointer readerFeature = ReaderType::New();
+  std::ostringstream FeatureImageFileName;
+  FeatureImageFileName << controlfile("image/output","./Output") <<  "PreProcessFeature" <<  controlfile("image/preprocess",0) << ".mha";
+  readerFeature->SetFileName( FeatureImageFileName.str() );
   try
     {
-    readerMoving->Update();
+    readerFeature->Update();
     }
   catch( itk::ExceptionObject & e )
     {
     std::cerr << "Error in reading the input image: " << e << std::endl;
     return EXIT_FAILURE;
     }
-  InputImageType::Pointer MovingImage = readerMoving->GetOutput() ;
+  InputImageType::Pointer FeatureImage = readerFeature->GetOutput() ;
 
   // Reduce region of interest by SEARCH_RADIUS
   typedef itk::RegionOfInterestImageFilter< InputImageType, InputImageType >  RegionOfInterestFilterType;
 
   RegionOfInterestFilterType::Pointer regionOfInterestFilter = RegionOfInterestFilterType::New();
 
-  regionOfInterestFilter->SetInput( MovingImage );
+  regionOfInterestFilter->SetInput( FeatureImage );
 
-  RegionOfInterestFilterType::RegionType regionOfInterest = MovingImage->GetLargestPossibleRegion();
+  RegionOfInterestFilterType::RegionType regionOfInterest = FeatureImage->GetLargestPossibleRegion();
 
   // set the starting point of the ROI
   RegionOfInterestFilterType::RegionType::IndexType regionOfInterestIndex = regionOfInterest.GetIndex();
@@ -184,8 +186,8 @@ int main( int argc, char * argv[] )
   featureSelectionFilter->SetNonConnectivity((unsigned int)controlfile("featureselection/nonconnectivity",0));
 
   // check if user input mask image
-  std::string MovingMaskFileName( controlfile("image/movingmask","MovingMaskNotFound") ) ;
-  if (MovingMaskFileName.find("MovingMaskNotFound")!=std::string::npos)
+  std::string FeatureMaskFileName( controlfile("image/featuremask","MovingMaskNotFound") ) ;
+  if (FeatureMaskFileName.find("MovingMaskNotFound")!=std::string::npos)
    {
      std::cout << "No Moving Image Mask input... " << std::endl;
      std::cout << "No Moving Image Mask input... " << std::endl;
@@ -193,14 +195,14 @@ int main( int argc, char * argv[] )
   else
    {
     ReaderType::Pointer readerMovingMask = ReaderType::New();
-    readerMovingMask->SetFileName( MovingMaskFileName.c_str() );
+    readerMovingMask->SetFileName( FeatureMaskFileName.c_str() );
     try
       {
         readerMovingMask->Update();
       }
     catch( itk::ExceptionObject & e )
       {
-        std::cerr << "Error in reading the moving image mask image: " <<  MovingMaskFileName << e << std::endl;
+        std::cerr << "Error in reading the moving image mask image: " <<  FeatureMaskFileName << e << std::endl;
       }
     // set mask image
     featureSelectionFilter->SetMaskImage( readerMovingMask->GetOutput() );
@@ -239,7 +241,21 @@ int main( int argc, char * argv[] )
   // echo output points
   std::cout << "Wrote "<< NumFeaturePoints << " Feature Points..." << std::endl;
 
-  //Set up the reader
+  //Set up the moving target reader
+  ReaderType::Pointer readerMoving = ReaderType::New();
+  readerMoving->SetFileName( controlfile("image/moving","./MovingNotFound") );
+  try
+    {
+    readerMoving->Update();
+    }
+  catch( itk::ExceptionObject & e )
+    {
+    std::cerr << "Error in reading the input image: " << e << std::endl;
+    return EXIT_FAILURE;
+    }
+  InputImageType::Pointer MovingImage = readerMoving->GetOutput() ;
+
+  //Set up the fixed source reader
   ReaderType::Pointer readerFixed = ReaderType::New();
   readerFixed->SetFileName( controlfile("image/fixed","./FixedNotFound") );
   try
