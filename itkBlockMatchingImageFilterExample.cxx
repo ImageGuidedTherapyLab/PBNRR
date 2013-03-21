@@ -92,8 +92,11 @@ int main( int argc, char * argv[] )
     featureBlockRadius.SetElement(  icoord, 
                              controlfile("featureselection/blockradius" , 3, icoord) );
    }
+  // get the preprocess id
+  int PreProcessID = controlfile("image/preprocess",0) ;
   // Append Tag to Id output
   std::ostringstream OutputFileTag;
+  OutputFileTag <<  "PreProcess" << PreProcessID ;
   OutputFileTag <<  "BlockMatchRadius";
   for (int icoord = 0; icoord < Dimension; icoord++) OutputFileTag <<  blockMatchRadius.GetElement(  icoord);
   OutputFileTag <<  "SearchRadius";
@@ -109,7 +112,7 @@ int main( int argc, char * argv[] )
   // read in moving image first and identify the feature points
   ReaderType::Pointer readerFeature = ReaderType::New();
   std::ostringstream FeatureImageFileName;
-  FeatureImageFileName << controlfile("image/output","./Output") <<  "PreProcessFeature" <<  controlfile("image/preprocess",0) << ".mha";
+  FeatureImageFileName << controlfile("image/output","./Output") <<  "PreProcessFeature" << PreProcessID  << ".mha";
   readerFeature->SetFileName( FeatureImageFileName.str() );
   try
     {
@@ -538,6 +541,15 @@ int main( int argc, char * argv[] )
     return EXIT_FAILURE;
     }
 
+  // TODO - landmark based transform
+  //  typedef itk::Rigid2DTransform< double > Rigid2DTransformType;
+  //   typedef itk::LandmarkBasedTransformInitializer< Rigid2DTransformType,
+  // ImageType, ImageType > 
+  //       LandmarkBasedTransformInitializerType;
+  //  
+  //   LandmarkBasedTransformInitializerType::Pointer
+  // landmarkBasedTransformInitializer =
+  //     LandmarkBasedTransformInitializerType::New();
   return EXIT_SUCCESS;
 }
 
