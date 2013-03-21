@@ -93,18 +93,18 @@ int main( int argc, char * argv[] )
                              controlfile("featureselection/blockradius" , 3, icoord) );
    }
   // get the preprocess id
-  int PreProcessID = controlfile("image/preprocess",0) ;
+  // int PreProcessID = controlfile("image/preprocess",0) ;
   // Append Tag to Id output
-  std::ostringstream OutputFileTag;
-  OutputFileTag <<  "PreProcess" << PreProcessID ;
-  OutputFileTag <<  "BlockMatchRadius";
-  for (int icoord = 0; icoord < Dimension; icoord++) OutputFileTag <<  blockMatchRadius.GetElement(  icoord);
-  OutputFileTag <<  "SearchRadius";
-  for (int icoord = 0; icoord < Dimension; icoord++) OutputFileTag <<  searchRadius.GetElement(      icoord);
-  OutputFileTag <<  "ConnectRadius";
-  for (int icoord = 0; icoord < Dimension; icoord++) OutputFileTag <<  connectivityRadius.GetElement(icoord);
-  OutputFileTag <<  "FeatureRadius";
-  for (int icoord = 0; icoord < Dimension; icoord++) OutputFileTag <<  featureBlockRadius.GetElement(icoord);
+  // std::ostringstream OutputFileTag;
+  // OutputFileTag <<  "PreProcess" << PreProcessID ;
+  // OutputFileTag <<  "BlockMatchRadius";
+  // for (int icoord = 0; icoord < Dimension; icoord++) OutputFileTag <<  blockMatchRadius.GetElement(  icoord);
+  // OutputFileTag <<  "SearchRadius";
+  // for (int icoord = 0; icoord < Dimension; icoord++) OutputFileTag <<  searchRadius.GetElement(      icoord);
+  // OutputFileTag <<  "ConnectRadius";
+  // for (int icoord = 0; icoord < Dimension; icoord++) OutputFileTag <<  connectivityRadius.GetElement(icoord);
+  // OutputFileTag <<  "FeatureRadius";
+  // for (int icoord = 0; icoord < Dimension; icoord++) OutputFileTag <<  featureBlockRadius.GetElement(icoord);
 
 
   typedef itk::ImageFileReader< InputImageType >  ReaderType;
@@ -112,7 +112,7 @@ int main( int argc, char * argv[] )
   // read in moving image first and identify the feature points
   ReaderType::Pointer readerFeature = ReaderType::New();
   std::ostringstream FeatureImageFileName;
-  FeatureImageFileName << controlfile("image/output","./Output") <<  "PreProcessFeature" << PreProcessID  << ".mha";
+  FeatureImageFileName << controlfile("image/output","./Output") <<  "PreProcessFeature" << ".mha";
   readerFeature->SetFileName( FeatureImageFileName.str() );
   try
     {
@@ -523,8 +523,8 @@ int main( int argc, char * argv[] )
 
   std::ofstream      MovingBlockMatchFile,Fixed_BlockMatchFile;
   std::ostringstream MovingBlockMatchFileName,Fixed_BlockMatchFileName;
-  MovingBlockMatchFileName << controlfile("image/output","./Output")<<"MovingTarget" <<  OutputFileTag.str() << ".mha" ;
-  Fixed_BlockMatchFileName << controlfile("image/output","./Output")<<"Fixed_Source" <<  OutputFileTag.str() << ".mha" ;
+  MovingBlockMatchFileName << controlfile("image/output","./Output")<<"MovingTarget" << ".mha" ;
+  Fixed_BlockMatchFileName << controlfile("image/output","./Output")<<"Fixed_Source" << ".mha" ;
   MovingWriter->SetFileName( MovingBlockMatchFileName.str().c_str() );
   Fixed_Writer->SetFileName( Fixed_BlockMatchFileName.str().c_str() );
   MovingWriter->SetInput( outputMovingImage );
