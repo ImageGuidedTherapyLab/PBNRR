@@ -111,9 +111,8 @@ int main( int argc, char * argv[] )
 
   // read in moving image first and identify the feature points
   ReaderType::Pointer readerFeature = ReaderType::New();
-  std::ostringstream FeatureImageFileName;
-  FeatureImageFileName << controlfile("image/output","./Output") <<  "PreProcessFeature" << ".mha";
-  readerFeature->SetFileName( FeatureImageFileName.str() );
+  std::string FeatureImageFileName( controlfile("image/featureimage","FeatureImageNotFound") ) ;
+  readerFeature->SetFileName( FeatureImageFileName.c_str() );
   try
     {
     readerFeature->Update();
