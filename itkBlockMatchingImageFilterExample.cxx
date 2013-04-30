@@ -215,7 +215,7 @@ int main( int argc, char * argv[] )
   // open file to write feature points
   std::ofstream      PhysicalFeatureFile; 
   std::ostringstream PhysicalFeatureFileName;
-  PhysicalFeatureFileName << controlfile("image/output","./Output") <<  "PhysicalFeature.txt" ;
+  PhysicalFeatureFileName << controlfile("image/output","./Output") <<  "PhysicalTargetPts.txt" ;
   PhysicalFeatureFile.open( PhysicalFeatureFileName.str().c_str()  );
 
   typedef itk::Point<float, Dimension >      ITKFloatPointType;
@@ -279,6 +279,11 @@ int main( int argc, char * argv[] )
   blockMatchingFilter->SetFixedImage(  Fixed_Image );
   blockMatchingFilter->SetMovingImage( MovingImage );
   blockMatchingFilter->SetFeaturePoints( featureSelectionFilter->GetOutput() );
+
+  if (Fixed_Image->GetSpacing() != MovingImage->GetSpacing() ) 
+   {
+    std::cerr << " image spacing not equal: " << std::endl;
+   }
 
   // parameters (all optional)
   blockMatchingFilter->SetNumberOfThreads( controlfile("exec/threads" , 
@@ -377,10 +382,11 @@ int main( int argc, char * argv[] )
   typedef BlockMatchingFilterType::DisplacementsType::PointDataContainer::ConstIterator  PointDataIteratorType;
 
   // write out block match indicies
-  std::ofstream      FeatureIndexFile    ,FixedIndexFile; 
-  std::ostringstream FeatureIndexFileName,FixedIndexFileName;
+  std::ofstream      FeatureIndexFile    ,FixedIndexFile    ,PhysSrcePtsFile    ; 
+  std::ostringstream FeatureIndexFileName,FixedIndexFileName,PhysSrcePtsFileName;
   FeatureIndexFileName << controlfile("image/output","./Output") << "MovingTargetIndex.txt" ;
   FixedIndexFileName   << controlfile("image/output","./Output") << "Fixed_SourceIndex.txt" ;
+  PhysSrcePtsFileName  << controlfile("image/output","./Output") << "PhysicalSourcePts.txt" ;
 
   PointIteratorType pointItr = featureSelectionFilter->GetOutput()->GetPoints()->Begin();
   PointIteratorType pointEnd = featureSelectionFilter->GetOutput()->GetPoints()->End();
@@ -388,23 +394,30 @@ int main( int argc, char * argv[] )
   // open
   FeatureIndexFile.open(    FeatureIndexFileName.str().c_str()     );
   FixedIndexFile.open(        FixedIndexFileName.str().c_str()     );
+  PhysSrcePtsFile.open(      PhysSrcePtsFileName.str().c_str()     );
   InputImageType::IndexType featureIndex;
   while ( pointItr != pointEnd )
     {
     if ( MovingImage->TransformPhysicalPointToIndex(pointItr.Value(), featureIndex) )
       {
+      const ITKFloatPointType &physicalfixedpt = pointItr.Value() + displItr.Value();
       InputImageType::IndexType fixedIndex;
       Fixed_Image->TransformPhysicalPointToIndex( pointItr.Value() + displItr.Value(), fixedIndex );
 
-      // write feature location
+      // write feature index
       FeatureIndexFile  << featureIndex[0]<<" "
                         << featureIndex[1]<<" "
                         << featureIndex[2]<< std::endl;
 
-      // write fixed location
+      // write fixed index 
       FixedIndexFile    << fixedIndex[0]<<" "
                         << fixedIndex[1]<<" "
                         << fixedIndex[2]<< std::endl;
+
+      // write fixed physical location
+      PhysSrcePtsFile   << physicalfixedpt[0]<<" "
+                        << physicalfixedpt[1]<<" "
+                        << physicalfixedpt[2]<< std::endl;
       } 
     pointItr++;
     displItr++;
@@ -412,6 +425,7 @@ int main( int argc, char * argv[] )
   // close file
   FeatureIndexFile.close();
   FixedIndexFile.close();
+  PhysSrcePtsFile.close();
 
   // typedef itk::ImageDuplicator< InputImageType > DuplicatorType;
   // DuplicatorType::Pointer duplicator = DuplicatorType::New();
