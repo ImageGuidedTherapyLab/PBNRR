@@ -23,7 +23,7 @@
 //#include "itkVector.h"
 #include "itkImageFileReader.h"
 #include "itkPhysicsBasedNonRigidRegistrationMethod.h"
-
+#include "itkWarpImageFilter.h"
 #include "itkImageFileReader.h"
 #include "itkImageFileWriter.h"
 
@@ -51,14 +51,14 @@ typedef itk::BlockMatchingImageFilter< InputImageType >   BlockMatchingFilterTyp
 int main(int argc, char *argv[] )
 {
 
-  if ( argc < 6)
+  if ( argc < 7)
   {
     std::cerr << "Five arguments are required :"<< std::endl;
-    std::cerr <<" FixedImage, MovingImage, MaskImage, Mesh, WarpedImage" << std::endl;
+    std::cerr <<" FixedImage, MovingImage, MaskImage, Mesh, DisplacementImage, WarpedImage" << std::endl;
     return EXIT_FAILURE;
   }
 
-  enum { FIXED_IMG = 1, MOVING_IMG, MASK_IMG, MESH, WARPED_IMG };
+  enum { FIXED_IMG = 1, MOVING_IMG, MASK_IMG, MESH, DISPLACEMENT_IMG, WARPED_IMG };
 
   // time
   timeval tim;
@@ -126,6 +126,7 @@ int main(int argc, char *argv[] )
   filter->SetOutlierRejectionSteps(10);
   filter->SetSelectFraction( 0.05 );
 
+  filter->DebugOn();
   std::cout << "Filter: " << filter << std::endl;
 
   // Update the NRR filter
@@ -144,16 +145,39 @@ int main(int argc, char *argv[] )
   gettimeofday(&tim, NULL);
   double startTime = tim.tv_sec + (tim.tv_usec/1000000.0);
 
-  // // Create - Write ITK deformed image
-  // InputImageType::Pointer deformedImage;
-  // filter->CreateDeformedImage(deformedImage);
-  // 
-  // std::cout << "Save Deformed Image at  : " << argv[WARPED_IMG] << std::endl;
-  // typedef itk::ImageFileWriter<InputImageType> WriterType;
-  // typename WriterType::Pointer deformedImageWriter = WriterType::New();
-  // deformedImageWriter->SetFileName(argv[WARPED_IMG]);
-  // deformedImageWriter->SetInput(deformedImage);
-  // deformedImageWriter->Update();
+  // apply deformation field to input image
+  typedef itk::WarpImageFilter< InputImageType,
+    InputImageType,
+    DeformationFieldType  >  WarpImageFilterType;
+ 
+  WarpImageFilterType::Pointer warpImageFilter = WarpImageFilterType::New();
+ 
+  typedef itk::LinearInterpolateImageFunction<InputImageType, double > InterpolatorType;
+ 
+  InterpolatorType::Pointer interpolator = InterpolatorType::New();
+  // setup the image warping
+  warpImageFilter->SetInterpolator( interpolator );
+  warpImageFilter->SetOutputSpacing(     filter->GetOutput()->GetSpacing() );
+  warpImageFilter->SetOutputOrigin(      filter->GetOutput()->GetOrigin() );
+  warpImageFilter->SetDisplacementField( filter->GetOutput() );
+  warpImageFilter->SetInput( readerMoving->GetOutput() );
+  warpImageFilter->Update();
+ 
+
+  // Write the displacement field
+  typedef itk::ImageFileWriter<DeformationFieldType> DeformationFieldWriterType;
+  DeformationFieldWriterType::Pointer DisplacementImageWriter = DeformationFieldWriterType::New();
+  DisplacementImageWriter->SetFileName(argv[DISPLACEMENT_IMG]);
+  DisplacementImageWriter->SetInput( filter->GetOutput() );
+  DisplacementImageWriter->Update();
+
+  // Write the output deformed image
+  std::cout << "Save Deformed Image at  : " << argv[WARPED_IMG] << std::endl;
+  typedef itk::ImageFileWriter<InputImageType> WriterType;
+  WriterType::Pointer deformedImageWriter = WriterType::New();
+  deformedImageWriter->SetFileName(argv[WARPED_IMG]);
+  deformedImageWriter->SetInput(warpImageFilter->GetOutput());
+  deformedImageWriter->Update();
 
   gettimeofday(&tim, NULL);
   double endTime  = tim.tv_sec + (tim.tv_usec/1000000.0);
