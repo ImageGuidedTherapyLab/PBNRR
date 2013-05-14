@@ -126,10 +126,15 @@ int main(int argc, char *argv[] )
   filter->SetOutlierRejectionSteps(10);
   filter->SetSelectFraction( 0.05 );
 
-  filter->DebugOn();
-  std::cout << "Filter: " << filter << std::endl;
-
+  PBNRRFilterType::FEMFilterType::Pointer                femfilter =    filter->GetFEMFilter();
+  PBNRRFilterType::FEMFilterType::FEMSolverType::Pointer femsolver = femfilter->GetFEMSolver();
+  std::cout << "Filter: "    << filter    << std::endl;
+  std::cout << "FEMFilter: " << femfilter << std::endl;
+  //std::cout << "FEMSolver: " << femsolver << std::endl;
+  // print info
+  femsolver->DebugOn();
   // Update the NRR filter
+  std::cout << "running... " << std::endl;
   try
   {
     filter->Update();
