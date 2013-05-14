@@ -129,7 +129,7 @@ int main( int argc, char *argv[] )
     std::cerr << "Missing Parameters " << std::endl;
     std::cerr << "Usage: " << argv[0];
     std::cerr << " fixedImageFile  movingImageFile ";
-    std::cerr << " outputImagefile [axis] [angle] [differenceBeforeRegistration] ";
+    std::cerr << " outputImagefile [axis] [angle] [maxIteration] [differenceBeforeRegistration] ";
     std::cerr << " [differenceAfterRegistration] ";
     std::cerr << " [sliceBeforeRegistration] ";
     std::cerr << " [sliceDifferenceBeforeRegistration] ";
@@ -137,7 +137,7 @@ int main( int argc, char *argv[] )
     std::cerr << " [sliceAfterRegistration] " << std::endl;
     return EXIT_FAILURE;
     }
-  enum { FIXED_IMG = 1, MOVING_IMG, OUTPUT_IMG, INIT_AXIS, INIT_ANGLE, DIFFBEFORE, DIFFAFTER, SLICEBEFORE, SLICEDIFFBEFORE, SLICEDIFFAFTER, SLICEAFTER };
+  enum { FIXED_IMG = 1, MOVING_IMG, OUTPUT_IMG, INIT_AXIS, INIT_ANGLE, MAX_ITER, DIFFBEFORE, DIFFAFTER, SLICEBEFORE, SLICEDIFFBEFORE, SLICEDIFFAFTER, SLICEAFTER };
   const unsigned int                          Dimension = 3;
   typedef  float                              PixelType;
   typedef itk::Image< PixelType, Dimension >  FixedImageType;
@@ -317,7 +317,12 @@ int main( int argc, char *argv[] )
   optimizer->SetScales( optimizerScales );
   optimizer->SetMaximumStepLength( 0.2000  );
   optimizer->SetMinimumStepLength( 0.0001 );
-  optimizer->SetNumberOfIterations( 200 );
+  unsigned int maxNumberOfIterations = 200;
+  if( argc > MAX_ITER )
+    {
+    maxNumberOfIterations = atoi( argv[MAX_ITER] );
+    }
+  optimizer->SetNumberOfIterations( maxNumberOfIterations );
 
   // Create the Command observer and register it with the optimizer.
   //

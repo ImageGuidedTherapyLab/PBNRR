@@ -105,11 +105,12 @@ int main( int argc, char *argv[] )
     std::cerr << "Missing Parameters " << std::endl;
     std::cerr << "Usage: " << argv[0];
     std::cerr << "   fixedImageFile  movingImageFile " << std::endl;
-    std::cerr << "   outputImagefile  [differenceBeforeRegistration] " << std::endl;
+    std::cerr << "   outputImagefile [stepLength] [maxNumberOfIterations] " << std::endl;
+    std::cerr << "   [translationScale] [differenceBeforeRegistration]" << std::endl;
     std::cerr << "   [differenceAfterRegistration] " << std::endl;
-    std::cerr << "   [stepLength] [maxNumberOfIterations] "<< std::endl;
     return EXIT_FAILURE;
     }
+  enum { FIXED_IMG = 1, MOVING_IMG, OUTPUT_IMG, STEP_LENGTH, MAX_ITER, TRANS_SCALE, DIFFBEFORE, DIFFAFTER};
 
 
   //  Software Guide : BeginLatex
@@ -186,8 +187,8 @@ int main( int argc, char *argv[] )
   typedef itk::ImageFileReader< MovingImageType > MovingImageReaderType;
   FixedImageReaderType::Pointer  fixedImageReader  = FixedImageReaderType::New();
   MovingImageReaderType::Pointer movingImageReader = MovingImageReaderType::New();
-  fixedImageReader->SetFileName(  argv[1] );
-  movingImageReader->SetFileName( argv[2] );
+  fixedImageReader->SetFileName(  argv[FIXED_IMG]  );
+  movingImageReader->SetFileName( argv[MOVING_IMG] );
 
 
   registration->SetFixedImage(    fixedImageReader->GetOutput()    );
@@ -248,9 +249,9 @@ int main( int argc, char *argv[] )
 
 
   double translationScale = 1.0 / 1000.0;
-  if( argc > 8 )
+  if( argc > TRANS_SCALE )
     {
-    translationScale = atof( argv[8] );
+    translationScale = atof( argv[TRANS_SCALE] );
     }
 
 
@@ -288,17 +289,17 @@ int main( int argc, char *argv[] )
 
   double steplength = 0.1;
 
-  if( argc > 6 )
+  if( argc > STEP_LENGTH )
     {
-    steplength = atof( argv[6] );
+    steplength = atof( argv[STEP_LENGTH] );
     }
 
 
   unsigned int maxNumberOfIterations = 300;
 
-  if( argc > 7 )
+  if( argc > MAX_ITER )
     {
-    maxNumberOfIterations = atoi( argv[7] );
+    maxNumberOfIterations = atoi( argv[MAX_ITER] );
     }
 
 
@@ -427,7 +428,7 @@ int main( int argc, char *argv[] )
   CastFilterType::Pointer  caster =  CastFilterType::New();
 
 
-  writer->SetFileName( argv[3] );
+  writer->SetFileName( argv[OUTPUT_IMG] );
 
 
   caster->SetInput( resampler->GetOutput() );
@@ -462,9 +463,9 @@ int main( int argc, char *argv[] )
 
   // Compute the difference image between the
   // fixed and resampled moving image.
-  if( argc > 5 )
+  if( argc > DIFFAFTER )
     {
-    writer2->SetFileName( argv[5] );
+    writer2->SetFileName( argv[DIFFAFTER] );
     writer2->Update();
     }
 
@@ -474,10 +475,10 @@ int main( int argc, char *argv[] )
 
   // Compute the difference image between the
   // fixed and moving image before registration.
-  if( argc > 4 )
+  if( argc > DIFFBEFORE )
     {
     resampler->SetTransform( identity );
-    writer2->SetFileName( argv[4] );
+    writer2->SetFileName( argv[DIFFBEFORE] );
     writer2->Update();
     }
 
