@@ -24,6 +24,7 @@
 #include "itkImageFileReader.h"
 #include "itkPhysicsBasedNonRigidRegistrationMethod.h"
 #include "itkWarpImageFilter.h"
+#include "itkDisplacementFieldJacobianDeterminantFilter.h"
 #include "itkImageFileReader.h"
 #include "itkImageFileWriter.h"
 
@@ -51,14 +52,23 @@ typedef itk::BlockMatchingImageFilter< InputImageType >   BlockMatchingFilterTyp
 int main(int argc, char *argv[] )
 {
 
-  if ( argc < 7)
+  if ( argc < 8)
   {
     std::cerr << "Five arguments are required :"<< std::endl;
-    std::cerr <<" FixedImage, MovingImage, MaskImage, Mesh, DisplacementImage, WarpedImage" << std::endl;
+    std::cerr <<" FixedImage, MovingImage, MaskImage, Mesh     " << std::endl;
+    std::cerr <<" DisplacementImage, WarpedImage, JacobianImage" << std::endl;
+    std::cerr <<" [block_x] [block_y] [block_z]" << std::endl;
+    std::cerr <<" [search_x] [search_y] [search_z]" << std::endl;
+    std::cerr <<" [nonconnectivityradius_x] [nonconnectivityradius_y] [nonconnectivityradius_z] [selectionfraction] " << std::endl;
+    std::cerr <<" [approximationsteps] [rejectionsteps] " << std::endl;
     return EXIT_FAILURE;
   }
 
-  enum { FIXED_IMG = 1, MOVING_IMG, MASK_IMG, MESH, DISPLACEMENT_IMG, WARPED_IMG };
+  enum { FIXED_IMG = 1, MOVING_IMG, MASK_IMG, MESH, DISPLACEMENT_IMG, WARPED_IMG, JAC_IMG ,
+         BLOCK_X, BLOCK_Y, BLOCK_Z, SEARCH_X, SEARCH_Y, SEARCH_Z, 
+         NON_CONNECT_RAD_X,NON_CONNECT_RAD_Y,NON_CONNECT_RAD_Z, SELECT_FRACT, 
+         APPROX_STEPS, REJECT_STEPS
+       };
 
   // time
   timeval tim;
@@ -116,15 +126,33 @@ int main(int argc, char *argv[] )
 
   itk::Size< ImageDimension > BlockRadious;
   BlockRadious.Fill(1);
+  if( argc > BLOCK_X ) BlockRadious.SetElement(0, atoi( argv[BLOCK_X] ));
+  if( argc > BLOCK_Y ) BlockRadious.SetElement(1, atoi( argv[BLOCK_Y] ));
+  if( argc > BLOCK_Z ) BlockRadious.SetElement(2, atoi( argv[BLOCK_Z] ));
   filter->SetBlockRadius(BlockRadious);
 
   itk::Size< ImageDimension > SearchRadious;
   SearchRadious.Fill(5);
+  if( argc > SEARCH_X ) SearchRadious.SetElement(0, atoi( argv[SEARCH_X] ));
+  if( argc > SEARCH_Y ) SearchRadious.SetElement(1, atoi( argv[SEARCH_Y] ));
+  if( argc > SEARCH_Z ) SearchRadious.SetElement(2, atoi( argv[SEARCH_Z] ));
   filter->SetSearchRadius(SearchRadious);
 
   filter->SetApproximationSteps(10);
+  if( argc > APPROX_STEPS) filter->SetApproximationSteps(    atoi( argv[APPROX_STEPS] ) );
   filter->SetOutlierRejectionSteps(10);
+  if( argc > REJECT_STEPS) filter->SetOutlierRejectionSteps( atoi( argv[REJECT_STEPS] ) );
   filter->SetSelectFraction( 0.05 );
+  if( argc > SELECT_FRACT) filter->SetSelectFraction(        atof( argv[SELECT_FRACT] ) );
+
+  PBNRRFilterType::FeatureSelectionFilterType::Pointer   featureFilter = filter->GetFeatureSelectionFilter();
+  itk::Size< ImageDimension > NonConnectivityRadious;
+  NonConnectivityRadious.Fill(1);
+  if( argc > NON_CONNECT_RAD_X ) NonConnectivityRadious.SetElement(0, atoi( argv[NON_CONNECT_RAD_X] ));
+  if( argc > NON_CONNECT_RAD_Y ) NonConnectivityRadious.SetElement(1, atoi( argv[NON_CONNECT_RAD_Y] ));
+  if( argc > NON_CONNECT_RAD_Z ) NonConnectivityRadious.SetElement(2, atoi( argv[NON_CONNECT_RAD_Z] ));
+  featureFilter->SetConnectivityRadius( NonConnectivityRadious);
+  std::cout << "featureselect: "    << featureFilter << std::endl;
 
   PBNRRFilterType::FEMFilterType::Pointer                femfilter =    filter->GetFEMFilter();
   PBNRRFilterType::FEMFilterType::FEMSolverType::Pointer femsolver = femfilter->GetFEMSolver();
@@ -176,9 +204,22 @@ int main(int argc, char *argv[] )
   DisplacementImageWriter->SetInput( filter->GetOutput() );
   DisplacementImageWriter->Update();
 
+  // output image writer
+  typedef itk::ImageFileWriter<InputImageType> WriterType;
+
+  // Write the jacobian displacement field
+  typedef itk::DisplacementFieldJacobianDeterminantFilter<DeformationFieldType> JacobianDeterminantFilterType;
+  JacobianDeterminantFilterType::Pointer jacobianFilter = JacobianDeterminantFilterType::New();
+  jacobianFilter->SetInput( filter->GetOutput() ) ;
+  jacobianFilter->Update();
+  std::cout << "Save Jacobian Image at  : " << argv[JAC_IMG] << std::endl;
+  WriterType::Pointer jacobianImageWriter = WriterType::New();
+  jacobianImageWriter->SetFileName(argv[WARPED_IMG]);
+  jacobianImageWriter->SetInput(jacobianFilter->GetOutput());
+  jacobianImageWriter->Update();
+
   // Write the output deformed image
   std::cout << "Save Deformed Image at  : " << argv[WARPED_IMG] << std::endl;
-  typedef itk::ImageFileWriter<InputImageType> WriterType;
   WriterType::Pointer deformedImageWriter = WriterType::New();
   deformedImageWriter->SetFileName(argv[WARPED_IMG]);
   deformedImageWriter->SetInput(warpImageFilter->GetOutput());

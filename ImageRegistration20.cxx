@@ -56,7 +56,10 @@
 #include "itkCastImageFilter.h"
 #include "itkSubtractImageFilter.h"
 #include "itkRescaleIntensityImageFilter.h"
+#include "itkTransformFileWriter.h"
 
+// global dimension
+const    unsigned int    Dimension = 3;
 
 //
 //  The following piece of code implements an observer
@@ -71,14 +74,21 @@ public:
   typedef itk::SmartPointer<Self>   Pointer;
   itkNewMacro( Self );
 
+  typedef itk::AffineTransform< double, Dimension  >     TransformType;
 protected:
-  CommandIterationUpdate() {m_PreviousValue=itk::NumericTraits< float >::max();};
+  CommandIterationUpdate()
+   {
+     m_PreviousValue=itk::NumericTraits< float >::max();
+     m_CurrentTransform = TransformType::New();
+   };
 
 private:
   float m_PreviousValue;
+  TransformType::Pointer m_CurrentTransform;
 public:
   typedef itk::RegularStepGradientDescentOptimizer OptimizerType;
   typedef   const OptimizerType *                  OptimizerPointer;
+  itkGetModifiableObjectMacro(CurrentTransform, TransformType);
 
   void Execute(itk::Object *caller, const itk::EventObject & event)
     {
@@ -105,7 +115,17 @@ public:
         }
       else 
         {
+        // store previousvalue
         m_PreviousValue = optimizer->GetValue();
+        // write out current transform
+        m_CurrentTransform->SetParameters( optimizer->GetCurrentPosition() );
+
+        itk::TransformFileWriter::Pointer transformwriter = itk::TransformFileWriter::New();
+        transformwriter->SetInput(m_CurrentTransform);
+        std::ostringstream TransformFileName;
+        TransformFileName  << "affine."<< optimizer->GetCurrentIteration() << ".tfm" ;
+        transformwriter->SetFileName(TransformFileName.str());
+        transformwriter->Update();
         }
     }
 };
@@ -133,7 +153,6 @@ int main( int argc, char *argv[] )
   //  Software Guide : EndLatex
 
   // Software Guide : BeginCodeSnippet
-  const    unsigned int    Dimension = 3;
   typedef  float           PixelType;
 
   typedef itk::Image< PixelType, Dimension >  FixedImageType;
@@ -344,6 +363,9 @@ int main( int argc, char *argv[] )
   // Create the Command observer and register it with the optimizer.
   //
   CommandIterationUpdate::Pointer observer = CommandIterationUpdate::New();
+  observer->GetCurrentTransform()->SetFixedParameters(transform->GetFixedParameters());
+  // TODO add transform filename
+  //observer.SetTranformFileName(transform->GetFixedParameters());
   optimizer->AddObserver( itk::IterationEvent(), observer );
 
 
@@ -443,6 +465,8 @@ int main( int argc, char *argv[] )
 
   typedef itk::ImageFileWriter< OutputImageType >  WriterType;
 
+  // print final transform
+  std::cout << " Final Transform = " << finalTransform << std::endl;
 
   WriterType::Pointer      writer =  WriterType::New();
   CastFilterType::Pointer  caster =  CastFilterType::New();
