@@ -132,12 +132,15 @@ int main( int argc, char *argv[] )
     std::cerr << "Missing Parameters " << std::endl;
     std::cerr << "Usage: " << argv[0];
     std::cerr << " fixedImageFile  movingImageFile ";
-    std::cerr << " outputImagefile [backgroundGrayLevel]";
-    std::cerr << " [checkerBoardBefore] [checkerBoardAfter]";
-    std::cerr << " [useExplicitPDFderivatives ] " << std::endl;
+    std::cerr << " outputImagefile ";
+    std::cerr << " [maxNumberOfIterations] [resolutionLevels] " << std::endl;
+    std::cerr << " [translationScale] [relaxationFactor] " << std::endl;
     std::cerr << " [numberOfBins] [numberOfSamples ] " << std::endl;
+    std::cerr << " [useExplicitPDFderivatives ] " << std::endl;
+    std::cerr << " [checkerBoardBefore] [checkerBoardAfter]";
     return EXIT_FAILURE;
     }
+  enum { FIXED_IMG = 1, MOVING_IMG, OUTPUT_IMG, MAX_ITER, NUM_LEVELS, TRANS_SCALE, RELAX_FACT, NUM_BINS, NUM_SAMPLE, EXP_DERIV, CHECKERBEFORE, CHECKERAFTER};
 
   const    unsigned int    Dimension = 3;
   typedef  unsigned short  PixelType;
@@ -148,7 +151,8 @@ int main( int argc, char *argv[] )
   typedef   float                                    InternalPixelType;
   typedef itk::Image< InternalPixelType, Dimension > InternalImageType;
 
-  typedef itk::TranslationTransform< double, Dimension > TransformType;
+  //typedef itk::TranslationTransform< double, Dimension > TransformType;
+  typedef itk::AffineTransform< double, Dimension > TransformType;
   typedef itk::RegularStepGradientDescentOptimizer       OptimizerType;
   typedef itk::LinearInterpolateImageFunction<
                                     InternalImageType,
@@ -196,8 +200,8 @@ int main( int argc, char *argv[] )
   FixedImageReaderType::Pointer  fixedImageReader  = FixedImageReaderType::New();
   MovingImageReaderType::Pointer movingImageReader = MovingImageReaderType::New();
 
-  fixedImageReader->SetFileName(  argv[1] );
-  movingImageReader->SetFileName( argv[2] );
+  fixedImageReader->SetFileName(  argv[FIXED_IMG ] );
+  movingImageReader->SetFileName( argv[MOVING_IMG] );
 
 
   typedef itk::CastImageFilter<
@@ -222,45 +226,97 @@ int main( int argc, char *argv[] )
 
 
   typedef RegistrationType::ParametersType ParametersType;
-  ParametersType initialParameters( transform->GetNumberOfParameters() );
+  //ParametersType initialParameters( transform->GetNumberOfParameters() );
 
-  initialParameters[0] = 0.0;  // Initial offset in mm along X
-  initialParameters[1] = 0.0;  // Initial offset in mm along Y
-  initialParameters[2] = 0.0;  // Initial offset in mm along Z
+  //initialParameters[0] = 0.0;  // Initial offset in mm along X
+  //initialParameters[1] = 0.0;  // Initial offset in mm along Y
+  //initialParameters[2] = 0.0;  // Initial offset in mm along Z
 
-  registration->SetInitialTransformParameters( initialParameters );
+  //registration->SetInitialTransformParameters( initialParameters );
+  registration->SetInitialTransformParameters(
+                                 transform->GetParameters() );
+
+  //  Software Guide : BeginLatex
+  //
+  //  Keeping in mind that the scale of units in scaling, rotation and
+  //  translation are quite different, we take advantage of the scaling
+  //  functionality provided by the optimizers. We know that the first $N
+  //  \times N$ elements of the parameters array correspond to the rotation
+  //  matrix factor, and the last $N$ are the components of the translation to
+  //  be applied after multiplication with the matrix is performed.
+  //
+  //  Software Guide : EndLatex
+
+
+  double translationScale = 1.0 / 1000.0;
+  if( argc > TRANS_SCALE )
+    {
+    translationScale = atof( argv[TRANS_SCALE] );
+    }
+
+
+  // Software Guide : BeginCodeSnippet
+  typedef OptimizerType::ScalesType       OptimizerScalesType;
+  OptimizerScalesType optimizerScales( transform->GetNumberOfParameters() );
+
+  optimizerScales[0] =  1.0;
+  optimizerScales[1] =  1.0;
+  optimizerScales[2] =  1.0;
+  optimizerScales[3] =  1.0;
+  optimizerScales[4] =  1.0;
+  optimizerScales[5] =  1.0;
+  optimizerScales[6] =  1.0;
+  optimizerScales[7] =  1.0;
+  optimizerScales[8] =  1.0;
+  optimizerScales[9]  =  translationScale;
+  optimizerScales[10] =  translationScale;
+  optimizerScales[11] =  translationScale;
+
+  optimizer->SetScales( optimizerScales );
+  // Software Guide : EndCodeSnippet
 
   metric->SetNumberOfHistogramBins( 128 );
   metric->SetNumberOfSpatialSamples( 50000 );
 
-  if( argc > 8 )
+  if( argc > NUM_BINS )
     {
     // optionally, override the values with numbers taken from the command line arguments.
-    metric->SetNumberOfHistogramBins( atoi( argv[8] ) );
+    metric->SetNumberOfHistogramBins( atoi( argv[NUM_BINS] ) );
     }
 
-  if( argc > 9 )
+  if( argc > NUM_SAMPLE )
     {
     // optionally, override the values with numbers taken from the command line arguments.
-    metric->SetNumberOfSpatialSamples( atoi( argv[9] ) );
+    metric->SetNumberOfSpatialSamples( atoi( argv[NUM_SAMPLE] ) );
     }
 
   metric->ReinitializeSeed( 76926294 );
 
 
-  if( argc > 7 )
+  if( argc > EXP_DERIV )
     {
     // Define whether to calculate the metric derivative by explicitly
     // computing the derivatives of the joint PDF with respect to the Transform
     // parameters, or doing it by progressively accumulating contributions from
     // each bin in the joint PDF.
-    metric->SetUseExplicitPDFDerivatives( atoi( argv[7] ) );
+    metric->SetUseExplicitPDFDerivatives( atoi( argv[EXP_DERIV] ) );
     }
 
 
   optimizer->SetNumberOfIterations( 200 );
   optimizer->SetRelaxationFactor( 0.9 );
 
+  if( argc > MAX_ITER )
+    {
+    // optionally, override the values with numbers taken from the command line arguments.
+    optimizer->SetNumberOfIterations( atoi( argv[MAX_ITER] ) );
+    }
+
+  if( argc > RELAX_FACT )
+    {
+    // optionally, override the values with numbers taken from the command line arguments.
+    optimizer->SetRelaxationFactor( atof( argv[RELAX_FACT] ) );
+    }
 
   // Create the Command observer and register it with the optimizer.
   //
@@ -290,9 +346,9 @@ int main( int argc, char *argv[] )
 
   ParametersType finalParameters = registration->GetLastTransformParameters();
 
-  double TranslationAlongX = finalParameters[0];
-  double TranslationAlongY = finalParameters[1];
-  double TranslationAlongZ = finalParameters[2];
+  //double TranslationAlongX = finalParameters[0];
+  //double TranslationAlongY = finalParameters[1];
+  //double TranslationAlongZ = finalParameters[2];
 
   unsigned int numberOfIterations = optimizer->GetCurrentIteration();
 
@@ -301,10 +357,10 @@ int main( int argc, char *argv[] )
 
   // Print out results
   //
-  std::cout << "Result = " << std::endl;
-  std::cout << " Translation X = " << TranslationAlongX  << std::endl;
-  std::cout << " Translation Y = " << TranslationAlongY  << std::endl;
-  std::cout << " Translation Z = " << TranslationAlongZ  << std::endl;
+  std::cout << "Result = " << finalParameters << std::endl;
+  //std::cout << " Translation X = " << TranslationAlongX  << std::endl;
+  //std::cout << " Translation Y = " << TranslationAlongY  << std::endl;
+  //std::cout << " Translation Z = " << TranslationAlongZ  << std::endl;
   std::cout << " Iterations    = " << numberOfIterations << std::endl;
   std::cout << " Metric value  = " << bestValue          << std::endl;
 
@@ -324,11 +380,7 @@ int main( int argc, char *argv[] )
 
   FixedImageType::Pointer fixedImage = fixedImageReader->GetOutput();
 
-  PixelType backgroundGrayLevel = 100;
-  if( argc > 4 )
-    {
-    backgroundGrayLevel = atoi( argv[4] );
-    }
+  PixelType backgroundGrayLevel = 0;
 
   resample->SetSize(    fixedImage->GetLargestPossibleRegion().GetSize() );
   resample->SetOutputOrigin(  fixedImage->GetOrigin() );
@@ -352,7 +404,7 @@ int main( int argc, char *argv[] )
   CastFilterType::Pointer  caster =  CastFilterType::New();
 
 
-  writer->SetFileName( argv[3] );
+  writer->SetFileName( argv[OUTPUT_IMG] );
 
 
   caster->SetInput( resample->GetOutput() );
@@ -379,18 +431,18 @@ int main( int argc, char *argv[] )
   identityTransform->SetIdentity();
   resample->SetTransform( identityTransform );
 
-  if( argc > 5 )
+  if( argc > CHECKERBEFORE )
     {
-    writer->SetFileName( argv[5] );
+    writer->SetFileName( argv[CHECKERBEFORE] );
     writer->Update();
     }
 
 
   // After registration
   resample->SetTransform( finalTransform );
-  if( argc > 6 )
+  if( argc > CHECKERAFTER )
     {
-    writer->SetFileName( argv[6] );
+    writer->SetFileName( argv[CHECKERAFTER] );
     writer->Update();
     }
 

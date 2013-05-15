@@ -72,8 +72,10 @@ public:
   itkNewMacro( Self );
 
 protected:
-  CommandIterationUpdate() {};
+  CommandIterationUpdate() {m_PreviousValue=itk::NumericTraits< float >::max();};
 
+private:
+  float m_PreviousValue;
 public:
   typedef itk::RegularStepGradientDescentOptimizer OptimizerType;
   typedef   const OptimizerType *                  OptimizerPointer;
@@ -93,7 +95,18 @@ public:
       }
       std::cout << optimizer->GetCurrentIteration() << "   ";
       std::cout << optimizer->GetValue() << "   ";
+      std::cout << m_PreviousValue       << "   ";
+      //std::cout << optimizer->GetGradient() << "   ";
       std::cout << optimizer->GetCurrentPosition() << std::endl;
+      if (optimizer->GetValue() > m_PreviousValue )
+        {//FIXME need to stop optimizer from diverging
+        //optimizer->StopOptimization();
+        std::cout << "diverging!!" << std::endl;
+        }
+      else 
+        {
+        m_PreviousValue = optimizer->GetValue();
+        }
     }
 };
 
@@ -106,11 +119,11 @@ int main( int argc, char *argv[] )
     std::cerr << "Usage: " << argv[0];
     std::cerr << "   fixedImageFile  movingImageFile " << std::endl;
     std::cerr << "   outputImagefile [stepLength] [maxNumberOfIterations] " << std::endl;
-    std::cerr << "   [translationScale] [differenceBeforeRegistration]" << std::endl;
-    std::cerr << "   [differenceAfterRegistration] " << std::endl;
+    std::cerr << "   [gradientTolerance] [translationScale] " << std::endl;
+    std::cerr << "   [differenceBeforeRegistration] [differenceAfterRegistration] " << std::endl;
     return EXIT_FAILURE;
     }
-  enum { FIXED_IMG = 1, MOVING_IMG, OUTPUT_IMG, STEP_LENGTH, MAX_ITER, TRANS_SCALE, DIFFBEFORE, DIFFAFTER};
+  enum { FIXED_IMG = 1, MOVING_IMG, OUTPUT_IMG, STEP_LENGTH, MAX_ITER, GRAD_TOL, TRANS_SCALE, DIFFBEFORE, DIFFAFTER};
 
 
   //  Software Guide : BeginLatex
@@ -307,6 +320,10 @@ int main( int argc, char *argv[] )
   optimizer->SetMaximumStepLength( steplength );
   optimizer->SetMinimumStepLength( 0.0001 );
   optimizer->SetNumberOfIterations( maxNumberOfIterations );
+  if( argc > GRAD_TOL )
+    {
+    optimizer->SetGradientMagnitudeTolerance( atof( argv[GRAD_TOL] ) );
+    }
   // Software Guide : EndCodeSnippet
 
 
@@ -337,6 +354,9 @@ int main( int argc, char *argv[] )
   //  block in case any exceptions are thrown.
   //
   //  Software Guide : EndLatex
+
+  std::cout << registration << std::endl;
+  std::cout << optimizer << std::endl;
 
   // Software Guide : BeginCodeSnippet
   try
