@@ -64,8 +64,10 @@ int main(int argc, char *argv[] )
     return EXIT_FAILURE;
   }
 
-  enum { FIXED_IMG = 1, MOVING_IMG, MASK_IMG, MESH, DISPLACEMENT_IMG, WARPED_IMG, JAC_IMG ,
-         BLOCK_X, BLOCK_Y, BLOCK_Z, SEARCH_X, SEARCH_Y, SEARCH_Z, 
+  enum { FIXED_IMG = 1, MOVING_IMG, MASK_IMG, MESH, 
+         DISPLACEMENT_IMG, WARPED_IMG, JAC_IMG ,
+         BLOCK_X, BLOCK_Y, BLOCK_Z, 
+         SEARCH_X, SEARCH_Y, SEARCH_Z, 
          NON_CONNECT_RAD_X,NON_CONNECT_RAD_Y,NON_CONNECT_RAD_Z, SELECT_FRACT, 
          APPROX_STEPS, REJECT_STEPS
        };
@@ -142,16 +144,25 @@ int main(int argc, char *argv[] )
   if( argc > APPROX_STEPS) filter->SetApproximationSteps(    atoi( argv[APPROX_STEPS] ) );
   filter->SetOutlierRejectionSteps(10);
   if( argc > REJECT_STEPS) filter->SetOutlierRejectionSteps( atoi( argv[REJECT_STEPS] ) );
-  filter->SetSelectFraction( 0.05 );
-  if( argc > SELECT_FRACT) filter->SetSelectFraction(        atof( argv[SELECT_FRACT] ) );
 
   PBNRRFilterType::FeatureSelectionFilterType::Pointer   featureFilter = filter->GetFeatureSelectionFilter();
+  featureFilter->DebugOn();
+  // use same block radius for feature filter
+  featureFilter->SetBlockRadius(BlockRadious);
   itk::Size< ImageDimension > NonConnectivityRadious;
   NonConnectivityRadious.Fill(1);
+  // non connectivity radius
   if( argc > NON_CONNECT_RAD_X ) NonConnectivityRadious.SetElement(0, atoi( argv[NON_CONNECT_RAD_X] ));
   if( argc > NON_CONNECT_RAD_Y ) NonConnectivityRadious.SetElement(1, atoi( argv[NON_CONNECT_RAD_Y] ));
   if( argc > NON_CONNECT_RAD_Z ) NonConnectivityRadious.SetElement(2, atoi( argv[NON_CONNECT_RAD_Z] ));
   featureFilter->SetConnectivityRadius( NonConnectivityRadious);
+
+  // selection fraction
+  if( argc > SELECT_FRACT) 
+    {
+     filter->SetSelectFraction(         atof( argv[SELECT_FRACT] ) );
+     featureFilter->SetSelectFraction(  atof( argv[SELECT_FRACT] ) );
+    }
   std::cout << "featureselect: "    << featureFilter << std::endl;
 
   PBNRRFilterType::FEMFilterType::Pointer                femfilter =    filter->GetFEMFilter();
@@ -173,6 +184,13 @@ int main(int argc, char *argv[] )
     return EXIT_FAILURE;
   }
   std::cout << "Done." << std::endl;
+
+  typedef itk::Point<float, ImageDimension >      ITKFloatPointType;
+  typedef std::vector< ITKFloatPointType > STLFeaturePointType;
+  const STLFeaturePointType &stlfeaturepoints = 
+        featureFilter->GetOutput()->GetPoints()->CastToSTLConstContainer();
+  const int NumFeaturePoints = stlfeaturepoints.size(); 
+  std::cout << NumFeaturePoints << " Feature points were used" << std::endl;
 
   // time
   gettimeofday(&tim, NULL);
