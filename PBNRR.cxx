@@ -214,7 +214,7 @@ int main(int argc, char *argv[] )
   jacobianFilter->Update();
   std::cout << "Save Jacobian Image at  : " << argv[JAC_IMG] << std::endl;
   WriterType::Pointer jacobianImageWriter = WriterType::New();
-  jacobianImageWriter->SetFileName(argv[WARPED_IMG]);
+  jacobianImageWriter->SetFileName(argv[JAC_IMG]);
   jacobianImageWriter->SetInput(jacobianFilter->GetOutput());
   jacobianImageWriter->Update();
 
