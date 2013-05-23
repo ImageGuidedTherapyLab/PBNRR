@@ -60,7 +60,8 @@ int main(int argc, char *argv[] )
     std::cerr <<" [block_x] [block_y] [block_z]" << std::endl;
     std::cerr <<" [search_x] [search_y] [search_z]" << std::endl;
     std::cerr <<" [nonconnectivityradius_x] [nonconnectivityradius_y] [nonconnectivityradius_z] [selectionfraction] " << std::endl;
-    std::cerr <<" [approximationsteps] [rejectionsteps] " << std::endl;
+    std::cerr <<" [approximationsteps] [rejectionsteps] [tradeoffenergy] [fractionrejected] " << std::endl;
+    std::cerr <<" [displacementtol] [youngmodulus] [poissonratio]" << std::endl;
     return EXIT_FAILURE;
   }
 
@@ -69,7 +70,8 @@ int main(int argc, char *argv[] )
          BLOCK_X, BLOCK_Y, BLOCK_Z, 
          SEARCH_X, SEARCH_Y, SEARCH_Z, 
          NON_CONNECT_RAD_X,NON_CONNECT_RAD_Y,NON_CONNECT_RAD_Z, SELECT_FRACT, 
-         APPROX_STEPS, REJECT_STEPS
+         APPROX_STEPS, REJECT_STEPS, TRADEOFF_ENERGY, FRAC_REJECT,
+         DISPLACE_TOL, YOUNG_MOD, POISSON_RAT
        };
 
   // time
@@ -166,7 +168,39 @@ int main(int argc, char *argv[] )
   std::cout << "featureselect: "    << featureFilter << std::endl;
 
   PBNRRFilterType::FEMFilterType::Pointer                femfilter =    filter->GetFEMFilter();
+
+  // youngs modulus
+  if( argc > YOUNG_MOD) 
+    {
+     femfilter->SetYoungsModulus(atof( argv[YOUNG_MOD] ));
+    }
+
+  // poisson modulus
+  if( argc > POISSON_RAT) 
+    {
+     femfilter->SetPoissonsRatio(atof( argv[POISSON_RAT] ));
+    }
+
   PBNRRFilterType::FEMFilterType::FEMSolverType::Pointer femsolver = femfilter->GetFEMSolver();
+  // trade off energy
+  if( argc > TRADEOFF_ENERGY) 
+    {
+     femsolver->SetTradeOffImageMeshEnergy(atof( argv[TRADEOFF_ENERGY] ));
+    }
+
+  // fraction rejected
+  if( argc > FRAC_REJECT) 
+    {
+     femsolver->SetFractionErrorRejected(atof( argv[FRAC_REJECT] ));
+    }
+
+  // displacement tolerance 
+  if( argc > DISPLACE_TOL) 
+    {
+     femsolver->SetToleranceToLargestDisplacement(atof( argv[DISPLACE_TOL] ));
+    }
+
+
   std::cout << "Filter: "    << filter    << std::endl;
   std::cout << "FEMFilter: " << femfilter << std::endl;
   //std::cout << "FEMSolver: " << femsolver << std::endl;
@@ -196,24 +230,19 @@ int main(int argc, char *argv[] )
   gettimeofday(&tim, NULL);
   double startTime = tim.tv_sec + (tim.tv_usec/1000000.0);
 
-  // apply deformation field to input image
-  typedef itk::WarpImageFilter< InputImageType,
-    InputImageType,
-    DeformationFieldType  >  WarpImageFilterType;
- 
-  WarpImageFilterType::Pointer warpImageFilter = WarpImageFilterType::New();
- 
-  typedef itk::LinearInterpolateImageFunction<InputImageType, double > InterpolatorType;
- 
-  InterpolatorType::Pointer interpolator = InterpolatorType::New();
-  // setup the image warping
-  warpImageFilter->SetInterpolator( interpolator );
-  warpImageFilter->SetOutputSpacing(     filter->GetOutput()->GetSpacing() );
-  warpImageFilter->SetOutputOrigin(      filter->GetOutput()->GetOrigin() );
-  warpImageFilter->SetDisplacementField( filter->GetOutput() );
-  warpImageFilter->SetInput( readerMoving->GetOutput() );
-  warpImageFilter->Update();
- 
+  // Create - Write ITK deformed image
+  InputImageType::Pointer deformedImage;
+  filter->CreateDeformedImage(deformedImage);
+
+  // output image writer
+  typedef itk::ImageFileWriter<InputImageType> WriterType;
+
+  // Write the output deformed image
+  std::cout << "Save Deformed Image at  : " << argv[WARPED_IMG] << std::endl;
+  WriterType::Pointer deformedImageWriter = WriterType::New();
+  deformedImageWriter->SetFileName(argv[WARPED_IMG]);
+  deformedImageWriter->SetInput(deformedImage);
+  deformedImageWriter->Update();
 
   // Write the displacement field
   typedef itk::ImageFileWriter<DeformationFieldType> DeformationFieldWriterType;
@@ -221,9 +250,6 @@ int main(int argc, char *argv[] )
   DisplacementImageWriter->SetFileName(argv[DISPLACEMENT_IMG]);
   DisplacementImageWriter->SetInput( filter->GetOutput() );
   DisplacementImageWriter->Update();
-
-  // output image writer
-  typedef itk::ImageFileWriter<InputImageType> WriterType;
 
   // Write the jacobian displacement field
   typedef itk::DisplacementFieldJacobianDeterminantFilter<DeformationFieldType> JacobianDeterminantFilterType;
@@ -235,13 +261,6 @@ int main(int argc, char *argv[] )
   jacobianImageWriter->SetFileName(argv[JAC_IMG]);
   jacobianImageWriter->SetInput(jacobianFilter->GetOutput());
   jacobianImageWriter->Update();
-
-  // Write the output deformed image
-  std::cout << "Save Deformed Image at  : " << argv[WARPED_IMG] << std::endl;
-  WriterType::Pointer deformedImageWriter = WriterType::New();
-  deformedImageWriter->SetFileName(argv[WARPED_IMG]);
-  deformedImageWriter->SetInput(warpImageFilter->GetOutput());
-  deformedImageWriter->Update();
 
   gettimeofday(&tim, NULL);
   double endTime  = tim.tv_sec + (tim.tv_usec/1000000.0);

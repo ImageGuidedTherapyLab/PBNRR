@@ -196,7 +196,10 @@ int main( int argc, char * argv[] )
    }
   else
    {
-    ReaderType::Pointer readerMovingMask = ReaderType::New();
+    typedef short                                     MaskPixelType;
+    typedef itk::Image< MaskPixelType,  Dimension >   MaskImageType;
+    typedef itk::ImageFileReader< MaskImageType >     MaskReaderType;
+    MaskReaderType::Pointer readerMovingMask = MaskReaderType::New();
     readerMovingMask->SetFileName( FeatureMaskFileName.c_str() );
     try
       {
