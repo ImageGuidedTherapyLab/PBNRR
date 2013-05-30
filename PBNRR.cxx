@@ -232,7 +232,26 @@ int main(int argc, char *argv[] )
 
   // Create - Write ITK deformed image
   InputImageType::Pointer deformedImage;
-  filter->CreateDeformedImage(deformedImage);
+  //filter->CreateDeformedImage(deformedImage);
+
+  // apply deformation field to input image
+  typedef itk::WarpImageFilter< InputImageType,
+    InputImageType,
+    DeformationFieldType  >  WarpImageFilterType;
+
+  WarpImageFilterType::Pointer warpImageFilter = WarpImageFilterType::New();
+
+  typedef itk::LinearInterpolateImageFunction<InputImageType, double > InterpolatorType;
+
+  InterpolatorType::Pointer interpolator = InterpolatorType::New();
+
+  // setup the image warping
+  warpImageFilter->SetInterpolator( interpolator );
+  warpImageFilter->SetOutputSpacing(     filter->GetOutput()->GetSpacing() );
+  warpImageFilter->SetOutputOrigin(      filter->GetOutput()->GetOrigin() );
+  warpImageFilter->SetDisplacementField( filter->GetOutput() );
+  warpImageFilter->SetInput( readerMoving->GetOutput() );
+  warpImageFilter->Update();
 
   // output image writer
   typedef itk::ImageFileWriter<InputImageType> WriterType;
@@ -241,6 +260,7 @@ int main(int argc, char *argv[] )
   std::cout << "Save Deformed Image at  : " << argv[WARPED_IMG] << std::endl;
   WriterType::Pointer deformedImageWriter = WriterType::New();
   deformedImageWriter->SetFileName(argv[WARPED_IMG]);
+  deformedImage = readerMoving->GetOutput();
   deformedImageWriter->SetInput(deformedImage);
   deformedImageWriter->Update();
 
