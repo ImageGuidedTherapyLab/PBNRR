@@ -19,8 +19,13 @@
 #include <algorithm>
 
 #include "itkCommand.h"
+#include "itkImageRegistrationMethod.h"
 #include "itkExhaustiveOptimizer.h"
-
+#include "itkImageFileReader.h"
+#include "itkImageFileWriter.h"
+#include "itkMattesMutualInformationImageToImageMetric.h"
+#include "itkTranslationTransform.h"
+#include "itkVersorRigid3DTransform.h"
 #include "vnl/vnl_math.h"
 
 /**
@@ -140,62 +145,106 @@ public:
 
 int main( int argc, char * argv[] )
 {
-  std::cout << "ExhaustiveOptimizer Test ";
-  std::cout << std::endl << std::endl;
+  if( argc < 3 )
+    {
+    std::cerr << "Missing Parameters " << std::endl;
+    std::cerr << "Usage: " << argv[0];
+    std::cerr << " fixedImageFile  movingImageFile output" << std::endl;
+    return EXIT_FAILURE;
+    }
+  enum { FIXED_IMG = 1, MOVING_IMG, OUTPUT_IMG};
 
-  typedef  itk::ExhaustiveOptimizer  OptimizerType;
+  const    unsigned int    Dimension = 3;
+  typedef   float                                    InternalPixelType;
+  typedef itk::Image< InternalPixelType, Dimension > InternalImageType;
+  typedef itk::ImageFileReader< InternalImageType > FixedImageReaderType;
+  typedef itk::ImageFileReader< InternalImageType > MovingImageReaderType;
 
-  typedef  OptimizerType::ScalesType            ScalesType;
+  // read images
+  FixedImageReaderType::Pointer  fixedImageReader  = FixedImageReaderType::New();
+  MovingImageReaderType::Pointer movingImageReader = MovingImageReaderType::New();
 
+  fixedImageReader->SetFileName(  argv[FIXED_IMG ] );
+  movingImageReader->SetFileName( argv[MOVING_IMG] );
 
-  // Declaration of a itkOptimizer
-  OptimizerType::Pointer  itkOptimizer = OptimizerType::New();
+  fixedImageReader->Update(  );
+  movingImageReader->Update( );
 
+  typedef itk::TranslationTransform< double, Dimension > TransformType;
+  // Software Guide : EndCodeSnippet
+  typedef itk::ExhaustiveOptimizer                       OptimizerType;
+  typedef itk::MattesMutualInformationImageToImageMetric<
+                                    InternalImageType,
+                                    InternalImageType >   MetricType;
+  typedef itk::LinearInterpolateImageFunction<
+                                    InternalImageType,
+                                    double             > InterpolatorType;
+  typedef itk::ImageRegistrationMethod< InternalImageType, InternalImageType >       RegistrationType;
+
+  MetricType::Pointer         metric        = MetricType::New();
+  OptimizerType::Pointer      optimizer     = OptimizerType::New();
+  InterpolatorType::Pointer   interpolator  = InterpolatorType::New();
+  RegistrationType::Pointer   registration  = RegistrationType::New();
+  TransformType::Pointer      transform     = TransformType::New();
 
   // Index observer (enables us to check if all positions were indeed visisted):
   IndexObserver::Pointer idxObserver = IndexObserver::New ();
-  itkOptimizer->AddObserver ( itk::IterationEvent (), idxObserver );
+  optimizer->AddObserver ( itk::IterationEvent (), idxObserver );
 
-  // Declaration of the CostFunction
-  RSGCostFunction::Pointer costFunction = RSGCostFunction::New();
-  itkOptimizer->SetCostFunction( costFunction.GetPointer() );
+  registration->SetMetric(        metric        );
+  registration->SetOptimizer(     optimizer     );
+  registration->SetInterpolator(  interpolator  );
+  registration->SetTransform(     transform     );
+  registration->SetFixedImage(    fixedImageReader->GetOutput()    );
+  registration->SetMovingImage(   movingImageReader->GetOutput()   );
+  registration->SetFixedImageRegion(
+     fixedImageReader->GetOutput()->GetBufferedRegion() );
 
-
-  typedef RSGCostFunction::ParametersType    ParametersType;
+  typedef MetricType::ParametersType    ParametersType;
 
 
   const unsigned int spaceDimension =
-                      costFunction->GetNumberOfParameters();
+                      metric->GetNumberOfParameters();
 
   // We start not so far from  | 2 -2 |
   ParametersType  initialPosition( spaceDimension );
-  initialPosition[0] =  0.0;
-  initialPosition[1] = -4.0;
+  InternalImageType::PointType     origin = movingImageReader->GetOutput()->GetOrigin();
+  initialPosition[0] = origin[0] ;
+  initialPosition[1] = origin[1] ;
+  initialPosition[2] = origin[2] ;
 
-  itkOptimizer->SetInitialPosition( initialPosition );
+  optimizer->SetInitialPosition( initialPosition );
 
 
+  typedef  OptimizerType::ScalesType            ScalesType;
   ScalesType    parametersScale( spaceDimension );
-  parametersScale[0] = 1.0;
-  parametersScale[1] = 1.0;
+  InternalImageType::SpacingType   spacing = fixedImageReader->GetOutput()->GetSpacing();
+  parametersScale[0] = spacing[0] ;
+  parametersScale[1] = spacing[1] ;
+  parametersScale[2] = spacing[2] ;
 
-  itkOptimizer->SetScales( parametersScale );
+  optimizer->SetScales( parametersScale );
 
 
-  itkOptimizer->SetStepLength( 1.0 );
+  optimizer->SetStepLength( 1.0 );
 
 
   typedef OptimizerType::StepsType  StepsType;
-  StepsType steps( 2 );
+  StepsType steps( Dimension );
   steps[0] = 10;
   steps[1] = 10;
+  steps[1] = 10;
 
-  itkOptimizer->SetNumberOfSteps( steps );
+  optimizer->SetNumberOfSteps( steps );
 
+  registration->SetInitialTransformParameters( transform->GetParameters() );
 
   try
     {
-    itkOptimizer->StartOptimization();
+    registration->Update();
+    std::cout << "Optimizer stop condition: "
+              << registration->GetOptimizer()->GetStopConditionDescription()
+              << std::endl;
     }
   catch( itk::ExceptionObject & e )
     {
@@ -207,16 +256,16 @@ int main( int argc, char * argv[] )
     }
 
 
-  bool minimumValuePass = vnl_math_abs ( itkOptimizer->GetMinimumMetricValue() - -10 ) < 1E-3;
+  bool minimumValuePass = vnl_math_abs ( optimizer->GetMinimumMetricValue() - -10 ) < 1E-3;
 
-  std::cout << "MinimumMetricValue = " << itkOptimizer->GetMinimumMetricValue() << std::endl;
-  std::cout << "Minimum Position = " << itkOptimizer->GetMinimumMetricValuePosition() << std::endl;
+  std::cout << "MinimumMetricValue = " << optimizer->GetMinimumMetricValue() << std::endl;
+  std::cout << "Minimum Position = " << optimizer->GetMinimumMetricValuePosition() << std::endl;
 
-  bool maximumValuePass = vnl_math_abs ( itkOptimizer->GetMaximumMetricValue() - 926 ) < 1E-3;
-  std::cout << "MaximumMetricValue = " << itkOptimizer->GetMaximumMetricValue() << std::endl;
-  std::cout << "Maximum Position = " << itkOptimizer->GetMaximumMetricValuePosition() << std::endl;
+  bool maximumValuePass = vnl_math_abs ( optimizer->GetMaximumMetricValue() - 926 ) < 1E-3;
+  std::cout << "MaximumMetricValue = " << optimizer->GetMaximumMetricValue() << std::endl;
+  std::cout << "Maximum Position = " << optimizer->GetMaximumMetricValuePosition() << std::endl;
 
-  ParametersType finalPosition = itkOptimizer->GetMinimumMetricValuePosition();
+  ParametersType finalPosition = optimizer->GetMinimumMetricValuePosition();
   std::cout << "Solution        = (";
   std::cout << finalPosition[0] << ",";
   std::cout << finalPosition[1] << ")" << std::endl;
@@ -267,7 +316,7 @@ int main( int argc, char * argv[] )
 
 
   std::cout << "Testing PrintSelf " << std::endl;
-  itkOptimizer->Print( std::cout );
+  optimizer->Print( std::cout );
 
   std::cout << "Test passed." << std::endl;
   return EXIT_SUCCESS;
