@@ -22,6 +22,7 @@ ADD_EXECUTABLE(itkBlockMatchingImageFilterExample itkBlockMatchingImageFilterExa
 ADD_EXECUTABLE(ImageRegistration8 ImageRegistration8.cxx )
 ADD_EXECUTABLE(ImageRegistration20 ImageRegistration20.cxx )
 ADD_EXECUTABLE(MultiResImageRegistration3 MultiResImageRegistration3.cxx )
+ADD_EXECUTABLE(itkExhaustiveOptimizerExample itkExhaustiveOptimizerExample.cxx )
 
 
 TARGET_LINK_LIBRARIES(PBNRR ${ITK_LIBRARIES})
@@ -29,6 +30,7 @@ TARGET_LINK_LIBRARIES(itkBlockMatchingImageFilterExample ${ITK_LIBRARIES})
 TARGET_LINK_LIBRARIES(ImageRegistration8 ${ITK_LIBRARIES})
 TARGET_LINK_LIBRARIES(ImageRegistration20 ${ITK_LIBRARIES})
 TARGET_LINK_LIBRARIES(MultiResImageRegistration3 ${ITK_LIBRARIES})
+TARGET_LINK_LIBRARIES(itkExhaustiveOptimizerExample ${ITK_LIBRARIES})
 
 
  
