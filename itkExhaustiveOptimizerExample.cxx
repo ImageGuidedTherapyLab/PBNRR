@@ -25,6 +25,7 @@
 #include "itkImageFileWriter.h"
 #include "itkMattesMutualInformationImageToImageMetric.h"
 #include "itkTranslationTransform.h"
+#include "itkCenteredTransformInitializer.h"
 #include "itkVersorRigid3DTransform.h"
 #include "vnl/vnl_math.h"
 
@@ -152,7 +153,7 @@ int main( int argc, char * argv[] )
     std::cerr << " fixedImageFile  movingImageFile output" << std::endl;
     return EXIT_FAILURE;
     }
-  enum { FIXED_IMG = 1, MOVING_IMG, OUTPUT_IMG};
+  enum { FIXED_IMG = 1, MOVING_IMG, OUTPUT_IMG,NUM_BINS,NUM_SAMPLE,EXP_DERIV};
 
   const    unsigned int    Dimension = 3;
   typedef   float                                    InternalPixelType;
@@ -169,6 +170,9 @@ int main( int argc, char * argv[] )
 
   fixedImageReader->Update(  );
   movingImageReader->Update( );
+
+  InternalImageType::Pointer fixedImage  = fixedImageReader->GetOutput() ;
+  InternalImageType::Pointer movingImage = movingImageReader->GetOutput();
 
   typedef itk::TranslationTransform< double, Dimension > TransformType;
   // Software Guide : EndCodeSnippet
@@ -195,49 +199,71 @@ int main( int argc, char * argv[] )
   registration->SetOptimizer(     optimizer     );
   registration->SetInterpolator(  interpolator  );
   registration->SetTransform(     transform     );
-  registration->SetFixedImage(    fixedImageReader->GetOutput()    );
-  registration->SetMovingImage(   movingImageReader->GetOutput()   );
-  registration->SetFixedImageRegion(
-     fixedImageReader->GetOutput()->GetBufferedRegion() );
+  registration->SetFixedImage(    fixedImage    );
+  registration->SetMovingImage(   movingImage   );
+  registration->SetFixedImageRegion( fixedImage->GetBufferedRegion() );
 
   typedef MetricType::ParametersType    ParametersType;
 
-
-  const unsigned int spaceDimension =
-                      metric->GetNumberOfParameters();
-
   // We start not so far from  | 2 -2 |
-  ParametersType  initialPosition( spaceDimension );
-  InternalImageType::PointType     origin = movingImageReader->GetOutput()->GetOrigin();
-  initialPosition[0] = origin[0] ;
-  initialPosition[1] = origin[1] ;
-  initialPosition[2] = origin[2] ;
+  ParametersType  initialPosition( Dimension );
+  InternalImageType::PointType     fixedOrigin =  fixedImage->GetOrigin();
+  InternalImageType::PointType    movingOrigin = movingImage->GetOrigin();
+  initialPosition[0] = fixedOrigin[0] - movingOrigin[0]  ;
+  initialPosition[1] = fixedOrigin[1] - movingOrigin[1]  ;
+  initialPosition[2] = fixedOrigin[2] - movingOrigin[2]  ;
 
-  optimizer->SetInitialPosition( initialPosition );
+  transform->SetParameters( initialPosition );
 
 
   typedef  OptimizerType::ScalesType            ScalesType;
-  ScalesType    parametersScale( spaceDimension );
-  InternalImageType::SpacingType   spacing = fixedImageReader->GetOutput()->GetSpacing();
+  ScalesType    parametersScale( Dimension );
+  InternalImageType::SpacingType   spacing = fixedImage->GetSpacing();
   parametersScale[0] = spacing[0] ;
   parametersScale[1] = spacing[1] ;
   parametersScale[2] = spacing[2] ;
 
   optimizer->SetScales( parametersScale );
 
-
   optimizer->SetStepLength( 1.0 );
 
-
   typedef OptimizerType::StepsType  StepsType;
+  InternalImageType::SizeType   ImageSize = fixedImage->GetLargestPossibleRegion().GetSize() ;
   StepsType steps( Dimension );
-  steps[0] = 10;
-  steps[1] = 10;
-  steps[1] = 10;
+  steps[0] = ImageSize[0];
+  steps[1] = ImageSize[1];
+  steps[1] = ImageSize[2];
 
   optimizer->SetNumberOfSteps( steps );
 
   registration->SetInitialTransformParameters( transform->GetParameters() );
+
+  metric->SetNumberOfHistogramBins( 32 );
+  metric->SetNumberOfSpatialSamples( 500 );
+
+  if( argc > NUM_BINS )
+    {
+    // optionally, override the values with numbers taken from the command line arguments.
+    metric->SetNumberOfHistogramBins( atoi( argv[NUM_BINS] ) );
+    }
+
+  if( argc > NUM_SAMPLE )
+    {
+    // optionally, override the values with numbers taken from the command line arguments.
+    metric->SetNumberOfSpatialSamples( atoi( argv[NUM_SAMPLE] ) );
+    }
+
+  metric->ReinitializeSeed( 76926294 );
+
+
+  if( argc > EXP_DERIV )
+    {
+    // Define whether to calculate the metric derivative by explicitly
+    // computing the derivatives of the joint PDF with respect to the Transform
+    // parameters, or doing it by progressively accumulating contributions from
+    // each bin in the joint PDF.
+    metric->SetUseExplicitPDFDerivatives( atoi( argv[EXP_DERIV] ) );
+    }
 
   try
     {
