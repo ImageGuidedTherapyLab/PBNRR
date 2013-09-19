@@ -336,8 +336,8 @@ TDisplacementFieldPointer itkGPUDemons(int, char *argv[])
   typename WriterType::Pointer     writer =  WriterType::New();
   typename CastFilterType::Pointer caster =  CastFilterType::New();
 
-  char *outName = AppendFileName(argv[5], (char *)"_gpu");
-  writer->SetFileName( outName );
+  //char *outName = AppendFileName(argv[5], (char *)"_gpu");
+  writer->SetFileName( "testgpu.nii.gz" );
 
   caster->SetInput( warper->GetOutput() );
   writer->SetInput( caster->GetOutput()   );
@@ -453,8 +453,8 @@ TDisplacementFieldPointer itkCPUDemons(int, char *argv[])
   typename WriterType::Pointer     writer =  WriterType::New();
   typename CastFilterType::Pointer caster =  CastFilterType::New();
 
-  char *outName = AppendFileName(argv[5], (char *)"_cpu");
-  writer->SetFileName( outName );
+  //char *outName = AppendFileName(argv[5], (char *)"_cpu");
+  writer->SetFileName( "testcpu.nii.gz" );
 
   caster->SetInput( warper->GetOutput() );
   writer->SetInput( caster->GetOutput()   );
